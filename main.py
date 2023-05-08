@@ -281,6 +281,50 @@ def moveScreenElement(element, newPositionX, newPositionY, easingType, iteration
     else:
         print("Invalid easing type! Must be either:\nLinear, Bezier, EaseIn, EaseOut")
 
+def labelFadeTransition(element, easingType, iterations, animationLength, includeBackground, includeText, originalBGColour, originalTextColour):
+    # The transparency of an element should either be full (255) or transparent (0) for transitioning.
+    # Note: animationLength is in milliseconds, includeBackground/includeText are booleans, and originalBGColour/
+    # originalTextColour are RGB values e.g. 255, 255, 255
+    targetTransparency = 255
+    if easingType == "EaseInIncrease":
+        print("Mode set to Ease In (increase transparency)")
+        for i in range(1, iterations + 1):
+            completionValue = pow(i / iterations, 3)
+            if includeBackground and not includeText:
+                element.setStyleSheet(
+                    f"background-color: rgba({originalBGColour}, {round(targetTransparency * completionValue)}); color: rgba({originalTextColour},255);")
+            elif includeText and not includeBackground:
+                element.setStyleSheet(
+                    f"color: rgba({originalTextColour}, {round(targetTransparency * completionValue)}); background-color: rgba({originalBGColour},255);")
+            else:
+                element.setStyleSheet(
+                    f"color: rgba({originalTextColour}, {round(targetTransparency * completionValue)});"
+                    f" background-color: rgba({originalBGColour}, "
+                    f"{round(targetTransparency * completionValue)})")
+            loop = QEventLoop()
+            QTimer.singleShot(round(animationLength / iterations), loop.quit)
+            loop.exec_()
+    elif easingType == "EaseInDecrease":
+        print("Mode set to Ease In (decrease transparency)")
+        for i in range(1, iterations + 1):
+            completionValue = pow(i / iterations, 3)
+            completionValue = 1 - completionValue
+            if includeBackground and not includeText:
+                element.setStyleSheet(
+                    f"background-color: rgba({originalBGColour}, {round(targetTransparency * completionValue)}); color: rgba({originalTextColour},255);")
+            elif includeText and not includeBackground:
+                element.setStyleSheet(
+                    f"color: rgba({originalTextColour}, {round(targetTransparency * completionValue)}); background-color: rgba({originalBGColour},255);")
+            else:
+                element.setStyleSheet(
+                    f"color: rgba({originalTextColour}, {round(targetTransparency * completionValue)});"
+                    f" background-color: rgba({originalBGColour}, "
+                    f"{round(targetTransparency * completionValue)})")
+            loop = QEventLoop()
+            QTimer.singleShot(round(animationLength / iterations), loop.quit)
+            loop.exec_()
+    else:
+        print("Invalid easing type! Must be either:\nEaseInIncrease, EaseInDecrease, EaseOutIncrease, EaseOutDecrease")
 
 # Generate screen elements functions
 def generateNewButton(parent, type, positionX, positionY, sizeX, sizeY, autoCenter, text):
@@ -540,8 +584,8 @@ class OmnimathUserInterface(QMainWindow):
         self.move(8, 0)
         self.resized.connect(self.rebuildScreen)
         # self.openLoginScreen(skipIntroVideo=True)
-        # self.tweenTestScreen()
-        self.openAvatarCreationScreen(name="FirstName LastName")
+        self.tweenTestScreen()
+        #self.openAvatarCreationScreen(name="FirstName LastName")
 
     def resizeEvent(self, event):
         self.resized.emit()
@@ -662,11 +706,18 @@ class OmnimathUserInterface(QMainWindow):
         testObject = QLabel(tWidget)
         testObject.resize(300, 300)
         testObject.move(round(3 * (screenWidth / 4)), 1000)
-        testObject.setStyleSheet("background: red;")
+        testObject.setStyleSheet("background: red; color: black;")
+        testObject.setText("Test Object")
+        testObject.setFont(QFont("Arial", 20))
+        testObject.setAlignment(Qt.AlignCenter)
         loop = QEventLoop()
         QTimer.singleShot(2000, loop.quit)
         loop.exec_()
-        moveScreenElement(testObject, 0, 1000, "Bezier", 1000, 1500)
+        labelFadeTransition(testObject,"EaseInDecrease",400,1500,True,True,"255,0,0","0,0,0")
+        loop = QEventLoop()
+        QTimer.singleShot(2000, loop.quit)
+        loop.exec_()
+        labelFadeTransition(testObject, "EaseInIncrease", 1000, 1500, True, True, "255,0,0", "0,0,0")
         print("Done")
 
     def openSettingsScreen(self):
@@ -1097,7 +1148,7 @@ def excepthook(exc_type, exc_value, exc_tb):
     titleLabel = QLabel(errorWidget)
     titleLabel.resize(round(screenWidth/1.5), round(screenHeight/6))
     titleLabel.move(round(screenWidth/2 - screenWidth/3), round(screenHeight/7))
-    headerMsgs = ['NOOOOOOOOOOOO', 'Rare Tom L', 'Matt code moment', 'RIP ATAR :(', 'HEHEHEHA', 'DO BETTER!!!', 'Uh oh']
+    headerMsgs = ['NOOOOOOOOOOOO', 'Rare Tom L', 'Matt code moment', 'RIP ATAR :(', 'HEHEHEHA', 'DO BETTER!!!', 'Uh oh', 'Band 6 reduced to atoms', 'Skill issue']
     font = QFont('Arial', round(mainFontSize*2.5))
     font.setBold(True)
     titleLabel.setFont(font)
