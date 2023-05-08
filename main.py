@@ -13,6 +13,7 @@ from animations import AnimatedToggleCheckbox
 # System
 import os
 import sys
+import traceback
 import webbrowser
 
 # Math
@@ -32,6 +33,7 @@ else:
     os.environ["PATH"] = os.pathsep.join((pyvipsBinPath, os.environ["PATH"]))
 
 import pyvips
+
 pyvips.cache_set_max(0)
 
 global resolutionList, avatarSystemAssociations
@@ -212,6 +214,7 @@ avatarSystemAssociations = {
     }
 }
 
+
 #
 def moveScreenElement(element, newPositionX, newPositionY, easingType, iterations, animationLength):
     # For equations of the curves used to calculate the multiplier, see https://www.desmos.com/calculator/2lormzlbhu
@@ -232,7 +235,7 @@ def moveScreenElement(element, newPositionX, newPositionY, easingType, iteration
             currentPositionY = element.y()
             element.move(round(currentPositionX + iterationXDifference), round(currentPositionY + iterationYDifference))
             loop = QEventLoop()
-            QTimer.singleShot(round(animationLength/iterationsActual), loop.quit)
+            QTimer.singleShot(round(animationLength / iterationsActual), loop.quit)
             loop.exec_()
         element.move(round(newPositionX), round(newPositionY))
     elif easingType == "Bezier":
@@ -242,10 +245,11 @@ def moveScreenElement(element, newPositionX, newPositionY, easingType, iteration
         originalPositionX = round(element.x())
         originalPositionY = round(element.y())
         for i in range(1, iterations + 1):
-            completionValue = i/iterations * i/iterations * (3 - 2*(i/iterations))
-            element.move(round(originalPositionX + (newPositionX - originalPositionX)*completionValue), round(originalPositionY + (newPositionY - originalPositionY)*completionValue))
+            completionValue = i / iterations * i / iterations * (3 - 2 * (i / iterations))
+            element.move(round(originalPositionX + (newPositionX - originalPositionX) * completionValue),
+                         round(originalPositionY + (newPositionY - originalPositionY) * completionValue))
             loop = QEventLoop()
-            QTimer.singleShot(round(animationLength/iterations), loop.quit)
+            QTimer.singleShot(round(animationLength / iterations), loop.quit)
             loop.exec_()
         element.move(round(newPositionX), round(newPositionY))
     elif easingType == "EaseIn":
@@ -254,10 +258,11 @@ def moveScreenElement(element, newPositionX, newPositionY, easingType, iteration
         originalPositionX = round(element.x())
         originalPositionY = round(element.y())
         for i in range(1, iterations + 1):
-            completionValue = pow(i/iterations, 3)
-            element.move(round(originalPositionX + (newPositionX - originalPositionX)*completionValue), round(originalPositionY + (newPositionY - originalPositionY)*completionValue))
+            completionValue = pow(i / iterations, 3)
+            element.move(round(originalPositionX + (newPositionX - originalPositionX) * completionValue),
+                         round(originalPositionY + (newPositionY - originalPositionY) * completionValue))
             loop = QEventLoop()
-            QTimer.singleShot(round(animationLength/iterations), loop.quit)
+            QTimer.singleShot(round(animationLength / iterations), loop.quit)
             loop.exec_()
         element.move(round(newPositionX), round(newPositionY))
     elif easingType == "EaseOut":
@@ -266,14 +271,16 @@ def moveScreenElement(element, newPositionX, newPositionY, easingType, iteration
         originalPositionX = round(element.x())
         originalPositionY = round(element.y())
         for i in range(1, iterations + 1):
-            completionValue = 1 - pow((1-(i/iterations)),3)
-            element.move(round(originalPositionX + (newPositionX - originalPositionX)*completionValue), round(originalPositionY + (newPositionY - originalPositionY)*completionValue))
+            completionValue = 1 - pow((1 - (i / iterations)), 3)
+            element.move(round(originalPositionX + (newPositionX - originalPositionX) * completionValue),
+                         round(originalPositionY + (newPositionY - originalPositionY) * completionValue))
             loop = QEventLoop()
-            QTimer.singleShot(round(animationLength/iterations), loop.quit)
+            QTimer.singleShot(round(animationLength / iterations), loop.quit)
             loop.exec_()
         element.move(round(newPositionX), round(newPositionY))
     else:
         print("Invalid easing type! Must be either:\nLinear, Bezier, EaseIn, EaseOut")
+
 
 # Generate screen elements functions
 def generateNewButton(parent, type, positionX, positionY, sizeX, sizeY, autoCenter, text):
@@ -507,6 +514,7 @@ account = {
     }
 }
 
+
 # renderAvatar(account['avatarInfo'])
 
 
@@ -531,9 +539,10 @@ class OmnimathUserInterface(QMainWindow):
         autoScaleDisabled = False
         self.move(8, 0)
         self.resized.connect(self.rebuildScreen)
-        #self.openLoginScreen(skipIntroVideo=True)
-        #self.tweenTestScreen()
+        # self.openLoginScreen(skipIntroVideo=True)
+        # self.tweenTestScreen()
         self.openAvatarCreationScreen(name="FirstName LastName")
+
     def resizeEvent(self, event):
         self.resized.emit()
         return super(OmnimathUserInterface, self).resizeEvent(event)
@@ -649,17 +658,16 @@ class OmnimathUserInterface(QMainWindow):
         tBGLabel.resize(screenWidth, screenHeight)
         tBGLabel.move(0, 0)
         tBGLabel.setStyleSheet("background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,stop: 0 #808080, "
-                                      "stop: 1 #242323);")
+                               "stop: 1 #242323);")
         testObject = QLabel(tWidget)
-        testObject.resize(300,300)
-        testObject.move(round(3*(screenWidth/4)), 1000)
+        testObject.resize(300, 300)
+        testObject.move(round(3 * (screenWidth / 4)), 1000)
         testObject.setStyleSheet("background: red;")
         loop = QEventLoop()
         QTimer.singleShot(2000, loop.quit)
         loop.exec_()
         moveScreenElement(testObject, 0, 1000, "Bezier", 1000, 1500)
         print("Done")
-
 
     def openSettingsScreen(self):
         global screenWidth, screenHeight, currentPath, mainFontSize, currentPage, isFullscreen, resolutionString, \
@@ -815,9 +823,11 @@ class OmnimathUserInterface(QMainWindow):
 
         def goBackToMenu():
             self.openLoginScreen(skipIntroVideo=True)
-        settingsWidget.exitBtn = generateNewButton(settingsWidget,"RedEnabled",round(screenWidth/2),round(screenHeight/1.3),round(screenWidth/11),round(screenWidth/26),autoCenter=True,text="Go back")
-        settingsWidget.exitBtn.clicked.connect(goBackToMenu)
 
+        settingsWidget.exitBtn = generateNewButton(settingsWidget, "RedEnabled", round(screenWidth / 2),
+                                                   round(screenHeight / 1.3), round(screenWidth / 11),
+                                                   round(screenWidth / 26), autoCenter=True, text="Go back")
+        settingsWidget.exitBtn.clicked.connect(goBackToMenu)
 
     def openAvatarCreationScreen(self, name):
         global screenWidth, screenHeight, currentPage, mainFontSize
@@ -868,10 +878,11 @@ class OmnimathUserInterface(QMainWindow):
         scrollArea.setStyleSheet("background: transparent; border: 0px solid black")
 
         avatarPreviewLabel = QLabel(avatarWidget)
-        avatarPreviewLabel.resize(round(screenWidth/5),round(screenHeight/3.125))
-        avatarPreviewLabel.move(round(screenWidth/1.72), round(screenHeight/2 - screenHeight/6.25))
+        avatarPreviewLabel.resize(round(screenWidth / 5), round(screenHeight / 3.125))
+        avatarPreviewLabel.move(round(screenWidth / 1.72), round(screenHeight / 2 - screenHeight / 6.25))
         placeholderPixmap = QPixmap("OmniMathAssets/ImageAssets/avatarPending.png")
-        placeholderPixmap = placeholderPixmap.scaled(round(avatarPreviewLabel.width()), round(avatarPreviewLabel.height()))
+        placeholderPixmap = placeholderPixmap.scaled(round(avatarPreviewLabel.width()),
+                                                     round(avatarPreviewLabel.height()))
         avatarPreviewLabel.setPixmap(placeholderPixmap)
         avatarShadow = QGraphicsDropShadowEffect()
         avatarShadow.setOffset(0, 0)
@@ -880,8 +891,8 @@ class OmnimathUserInterface(QMainWindow):
         avatarPreviewLabel.setGraphicsEffect(avatarShadow)
 
         avatarNameLabel = QLabel(avatarWidget)
-        avatarNameLabel.resize(round(screenWidth/2),round(screenHeight/6))
-        avatarNameLabel.move(round(screenWidth/2 - screenWidth/14.9), round(screenHeight/1.6))
+        avatarNameLabel.resize(round(screenWidth / 2), round(screenHeight / 6))
+        avatarNameLabel.move(round(screenWidth / 2 - screenWidth / 14.9), round(screenHeight / 1.6))
         avatarNameLabel.setFont(font)
         avatarNameLabel.setStyleSheet("color: white;")
         avatarNameLabel.setText(name)
@@ -903,8 +914,10 @@ class OmnimathUserInterface(QMainWindow):
             skinToneLabel.setText(random.choice(list(avatarSystemAssociations['skinTone'])))
             updateAvatarPreview()
 
-        randomiseAvatarButton = generateNewButton(parent=avatarWidget,type="Random",positionX=round(screenWidth/1.6),
-                                                  positionY=round(screenHeight/1.2),sizeX=round(screenWidth / 11),sizeY=round(screenWidth / 26),autoCenter=True,
+        randomiseAvatarButton = generateNewButton(parent=avatarWidget, type="Random",
+                                                  positionX=round(screenWidth / 1.6),
+                                                  positionY=round(screenHeight / 1.2), sizeX=round(screenWidth / 11),
+                                                  sizeY=round(screenWidth / 26), autoCenter=True,
                                                   text="  Randomise")
         randomiseAvatarButton.clicked.connect(randomiseAvatar)
 
@@ -938,12 +951,11 @@ class OmnimathUserInterface(QMainWindow):
             else:
                 print("Not updating avatar preview (render failed)")
 
-
         def addNewOption(descriptionLabel, category):
             global mainFontSize, avatarSystemAssociations
             optionWidget = QWidget()
             optionWidget.setFixedSize(round(screenWidth / 3.16), round(screenHeight / 14))
-            optionFont = QFont("Arial", mainFontSize-2)
+            optionFont = QFont("Arial", mainFontSize - 2)
             optionTitle = QLabel(optionWidget)
             optionTitle.setText(descriptionLabel)
             optionTitle.setFont(optionFont)
@@ -967,11 +979,12 @@ class OmnimathUserInterface(QMainWindow):
 
             optionLabel = QLabel(optionWidget)
             optionLabel.setText(list(avatarSystemAssociations[category].items())[0][0])
-            optionLabel.resize(round(optionWidget.width()/2),round(optionWidget.height()))
+            optionLabel.resize(round(optionWidget.width() / 2), round(optionWidget.height()))
             optionLabel.setAlignment(Qt.AlignCenter)
-            optionLabel.move(round(1.34*(optionWidget.width()/3)), 0)
+            optionLabel.move(round(1.34 * (optionWidget.width() / 3)), 0)
             optionLabel.setFont(optionFont)
             optionLabel.setStyleSheet("color: white;")
+
             def cycleOptionsRight(category=category):
                 # Get all category options from the association table and collect them in an array to cycle through
                 options = []
@@ -998,6 +1011,7 @@ class OmnimathUserInterface(QMainWindow):
                     optionLabel.setText(currentOption)
                     print(f"Updated text to: {currentOption}")
                     updateAvatarPreview()
+
             def cycleOptionsLeft(category=category):
                 # Get all category options from the association table and collect them in an array to cycle through
                 options = []
@@ -1020,14 +1034,14 @@ class OmnimathUserInterface(QMainWindow):
                 else:
                     # reset back to start
                     currentOptionIndex = numberOfOptions - 1
-                    currentOption = options[numberOfOptions-1]
+                    currentOption = options[numberOfOptions - 1]
                     optionLabel.setText(currentOption)
                     print(f"Updated text to: {currentOption}")
                     updateAvatarPreview()
 
             buttonLeft = QPushButton(optionWidget)
             buttonLeft.resize(round(optionWidget.width() / 11), round(optionWidget.height() / 2))
-            buttonLeft.move(round(1.25*(optionWidget.width() / 3)), round(optionWidget.height() / 4))
+            buttonLeft.move(round(1.25 * (optionWidget.width() / 3)), round(optionWidget.height() / 4))
             buttonLeft.setStyleSheet(style)
             iconLeft = QIcon("OmniMathAssets/ImageAssets/arrowLeft.png")
             buttonLeft.setIcon(iconLeft)
@@ -1035,7 +1049,7 @@ class OmnimathUserInterface(QMainWindow):
             buttonLeft.clicked.connect(lambda: cycleOptionsLeft(category=category))
             buttonRight = QPushButton(optionWidget)
             buttonRight.resize(round(optionWidget.width() / 11), round(optionWidget.height() / 2))
-            buttonRight.move(round(2.65*(optionWidget.width() / 3)), round(optionWidget.height() / 4))
+            buttonRight.move(round(2.65 * (optionWidget.width() / 3)), round(optionWidget.height() / 4))
             buttonRight.setStyleSheet(style)
             iconRight = QIcon("OmniMathAssets/ImageAssets/arrowRight.png")
             buttonRight.setIcon(iconRight)
@@ -1057,11 +1071,80 @@ class OmnimathUserInterface(QMainWindow):
         skinToneLabel = addNewOption("Skin Tone:", "skinTone")
         updateAvatarPreview()
 
+def excepthook(exc_type, exc_value, exc_tb):
+    global app, win, screenWidth, screenHeight, mainFontSize
+    tb = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+    print("ERROR:\n", tb)
+    errorWidget = QWidget()
+    win.setCentralWidget(errorWidget)
+    BGLabel = QLabel(errorWidget)
+    BGLabel.resize(screenWidth, screenHeight)
+    BGLabel.move(0,0)
+    BGLabel.setStyleSheet("background: white;")
+    errorImage = QLabel(errorWidget)
+    errorImage.resize(300,300)
+    errorImage.move(round(screenWidth/2 - 150), round(screenHeight/2 - 150))
+    errorMsgs = [{'gif': 'OmniMathAssets/VideoAssets/errorAngry.gif','audio': 'errorAngry.wav'},{'gif': 'OmniMathAssets/VideoAssets/errorCry.gif','audio': 'errorCry.wav'}, {'gif': 'OmniMathAssets/VideoAssets/errorLaugh.gif','audio': 'errorLaugh.wav'}]
+    selectedError = random.choice(errorMsgs)
+    errorGIF = selectedError['gif']
+    errorSound = selectedError['audio']
+    errorBackground = QMovie(errorGIF)
+    errorImage.setMovie(errorBackground)
+    size = QtCore.QSize(300, 300)
+    errorBackground.setScaledSize(size)
+    errorBackground.start()
+    playSound(errorSound)
+    titleLabel = QLabel(errorWidget)
+    titleLabel.resize(round(screenWidth/1.5), round(screenHeight/6))
+    titleLabel.move(round(screenWidth/2 - screenWidth/3), round(screenHeight/7))
+    headerMsgs = ['NOOOOOOOOOOOO', 'Rare Tom L', 'Matt code moment', 'RIP ATAR :(', 'HEHEHEHA', 'DO BETTER!!!', 'Uh oh']
+    font = QFont('Arial', round(mainFontSize*2.5))
+    font.setBold(True)
+    titleLabel.setFont(font)
+    titleLabel.setStyleSheet("color: red")
+    titleLabel.setAlignment(Qt.AlignCenter)
+    titleLabel.setText(random.choice(headerMsgs))
+    subtitleLabel = QLabel(errorWidget)
+    subtitleLabel.resize(round(screenWidth / 1.5), round(screenHeight / 6))
+    subtitleLabel.move(round(screenWidth / 2 - screenWidth / 3), round(screenHeight / 4.4))
+    font2 = QFont('Arial', round(mainFontSize * 1.6))
+    subtitleLabel.setFont(font2)
+    subtitleLabel.setStyleSheet("color: #570000")
+    subtitleLabel.setAlignment(Qt.AlignCenter)
+    subtitleLabel.setText("A critical error occured. Am I surprised? No, not really.")
+    subtitleLabel2 = QLabel(errorWidget)
+    subtitleLabel2.resize(round(screenWidth / 1.5), round(screenHeight / 6))
+    subtitleLabel2.move(round(screenWidth / 2 - screenWidth / 3), round(screenHeight / 1.8))
+    font3 = QFont('Arial', round(mainFontSize * 1.1))
+    subtitleLabel2.setFont(font3)
+    subtitleLabel2.setStyleSheet("color: #404040")
+    subtitleLabel2.setAlignment(Qt.AlignCenter)
+    subtitleLabel2.setText("Error info:")
+    errorMsgBox = QTextEdit(errorWidget)
+    errorMsgBox.resize(round(screenWidth/2), round(screenHeight/3))
+    errorMsgBox.move(round(screenWidth/2 - screenWidth/4), round(screenHeight/1.5))
+    errorMsgBox.setText(tb)
+    errorMsgBox.setFont(QFont("Arial", round(mainFontSize*0.75)))
+    exitBtn = generateNewButton(errorWidget, type="RedEnabled", positionX=round(screenWidth / 1.1),
+                                                  positionY=round(18 * (screenHeight / 20)),
+                                                  sizeX=round(screenWidth / 11),
+                                                  sizeY=round(screenWidth / 26), autoCenter=True, text="Rage Quit")
+    def exitFunction():
+        print("Exiting...")
+        playSound("errorSound.wav")
+        exitBtn.setText("AAAAAAAAAAAA")
+        loop = QEventLoop()
+        QTimer.singleShot(2000, loop.quit)
+        loop.exec_()
+        sys.exit()
+    exitBtn.clicked.connect(exitFunction)
 
+
+sys.excepthook = excepthook
 
 def main():
     print("Starting OmniMath...")
-    global screenWidth, screenHeight, desktopGeometry, app
+    global screenWidth, screenHeight, desktopGeometry, app, win
     app = QApplication(sys.argv)
     desktop = app.desktop()
     resolution = desktop.screenGeometry()
