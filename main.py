@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtMultimedia import *
 from PyQt5.QtMultimediaWidgets import *
+from PyQt5.QtSvg import QSvgWidget
 
 # Custom PyQt5 animations
 from animations import AnimatedToggleCheckbox
@@ -24,6 +25,11 @@ import sqlite3
 
 # Avatar system
 import python_avatars as pa
+
+# Math functions
+from io import BytesIO
+import matplotlib.pyplot as plt
+import numpy as np
 
 pyvipsBinPath = os.path.abspath("vips-dev-8.14/bin")
 dllDirectory = getattr(os, "dllDirectory", None)
@@ -287,16 +293,19 @@ def labelFadeTransition(element, easingType, iterations, animationLength, includ
     # originalTextColour are RGB values e.g. 255, 255, 255
     targetTransparency = 255
     if easingType == "EaseInIncrease":
+        element.setStyleSheet(f"background-color: rgba({originalBGColour}, 0); color: rgba({originalTextColour}, 0)")
         print("Mode set to Ease In (increase transparency)")
         for i in range(1, iterations + 1):
             completionValue = pow(i / iterations, 3)
+            print(round(completionValue*targetTransparency))
             if includeBackground and not includeText:
                 element.setStyleSheet(
-                    f"background-color: rgba({originalBGColour}, {round(targetTransparency * completionValue)}); color: rgba({originalTextColour},255);")
+                    f"background-color: rgba({originalBGColour}, {round(targetTransparency * completionValue)}); color: rgba({originalTextColour},0);")
             elif includeText and not includeBackground:
                 element.setStyleSheet(
-                    f"color: rgba({originalTextColour}, {round(targetTransparency * completionValue)}); background-color: rgba({originalBGColour},255);")
+                    f"color: rgba({originalTextColour}, {round(targetTransparency * completionValue)}); background-color: rgba({originalBGColour},0);")
             else:
+                print("both")
                 element.setStyleSheet(
                     f"color: rgba({originalTextColour}, {round(targetTransparency * completionValue)});"
                     f" background-color: rgba({originalBGColour}, "
@@ -705,20 +714,56 @@ class OmnimathUserInterface(QMainWindow):
                                "stop: 1 #242323);")
         testObject = QLabel(tWidget)
         testObject.resize(300, 300)
-        testObject.move(round(3 * (screenWidth / 4)), 1000)
+        testObject.move(round(3 * (screenWidth / 4)), 700)
         testObject.setStyleSheet("background: red; color: black;")
         testObject.setText("Test Object")
         testObject.setFont(QFont("Arial", 20))
         testObject.setAlignment(Qt.AlignCenter)
-        loop = QEventLoop()
-        QTimer.singleShot(2000, loop.quit)
-        loop.exec_()
-        labelFadeTransition(testObject,"EaseInDecrease",400,1500,True,True,"255,0,0","0,0,0")
-        loop = QEventLoop()
-        QTimer.singleShot(2000, loop.quit)
-        loop.exec_()
-        labelFadeTransition(testObject, "EaseInIncrease", 1000, 1500, True, True, "255,0,0", "0,0,0")
-        print("Done")
+
+        latexRenderBox = QSvgWidget(tWidget)
+        latexRenderBox.resize(round(screenWidth / 4), round(screenHeight / 8))
+        latexRenderBox.move(round(screenWidth / 2 - screenWidth / 8), round(screenHeight / 2 - screenHeight / 16))
+
+        latexInputBox = QLineEdit(tWidget)
+        latexInputBox.resize(round(screenWidth / 4), round(screenHeight / 8))
+        latexInputBox.move(round(screenWidth / 2 - screenWidth / 8), round(screenHeight / 2 - screenHeight / 16))
+        latexInputBox.setStyleSheet("background-color: rgba(255,255,255,0); border-radius: 15px; border: 2px solid black;")
+        def renderInput():
+            input = latexInputBox.text()
+            print(input)
+            if input != "" and input.startswith(" ") == False and input[len(input) - 1] != " ":
+                try:
+                    plt.close()
+                    fig = plt.figure(figsize=(0.01, 0.01))
+                    fig.text(0, 0, r'${}$'.format(input), fontsize=mainFontSize+6)
+                    output = BytesIO()
+                    fig.savefig(output, dpi=300, transparent=True, format='svg',
+                                bbox_inches='tight', pad_inches=0.0)
+                    plt.close(fig)
+                    output.seek(0)
+                    latexRenderBox.load(output.read())
+                    latexRenderBox.show()
+
+                    # https://stackoverflow.com/questions/69816765/reading-latex-with-python-eval
+                    # https://realpython.com/python-eval-function/
+                    # https://github.com/aditeyabaral/gpython/blob/master/archive/Plotter.py
+                except Exception as e:
+                    print(f"Invalid expression! Error: {e}")
+
+        latexInputBox.textChanged.connect(renderInput)
+
+        # loop = QEventLoop()
+        # QTimer.singleShot(2000, loop.quit)
+        # loop.exec_()
+        # labelFadeTransition(testObject,"EaseInDecrease",400,1500,True,True,"255,0,0","0,0,0")
+        # loop = QEventLoop()
+        # QTimer.singleShot(4000, loop.quit)
+        # loop.exec_()
+        # print("fade in")
+        # labelFadeTransition(testObject, "EaseInIncrease", 100, 5000, True, True, "255,0,0", "0,0,0")
+        # print("Done")
+
+
 
     def openSettingsScreen(self):
         global screenWidth, screenHeight, currentPath, mainFontSize, currentPage, isFullscreen, resolutionString, \
@@ -1133,15 +1178,15 @@ def excepthook(exc_type, exc_value, exc_tb):
     BGLabel.move(0,0)
     BGLabel.setStyleSheet("background: white;")
     errorImage = QLabel(errorWidget)
-    errorImage.resize(300,300)
-    errorImage.move(round(screenWidth/2 - 150), round(screenHeight/2 - 150))
+    errorImage.resize(250,250)
+    errorImage.move(round(screenWidth/2 - 125), round(screenHeight/2 - 125))
     errorMsgs = [{'gif': 'OmniMathAssets/VideoAssets/errorAngry.gif','audio': 'errorAngry.wav'},{'gif': 'OmniMathAssets/VideoAssets/errorCry.gif','audio': 'errorCry.wav'}, {'gif': 'OmniMathAssets/VideoAssets/errorLaugh.gif','audio': 'errorLaugh.wav'}]
     selectedError = random.choice(errorMsgs)
     errorGIF = selectedError['gif']
     errorSound = selectedError['audio']
     errorBackground = QMovie(errorGIF)
     errorImage.setMovie(errorBackground)
-    size = QtCore.QSize(300, 300)
+    size = QtCore.QSize(250, 250)
     errorBackground.setScaledSize(size)
     errorBackground.start()
     playSound(errorSound)
