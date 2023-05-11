@@ -224,6 +224,8 @@ avatarSystemAssociations = {
 #
 def moveScreenElement(element, newPositionX, newPositionY, easingType, iterations, animationLength):
     # For equations of the curves used to calculate the multiplier, see https://www.desmos.com/calculator/2lormzlbhu
+    # Iterations should be kept to a value < 800 to ensure the animation length is dependent on the wait statement
+    # and not the loop speed for more precision control.
     if easingType == "Linear":
         print("Mode set to Linear")
         # Note: Due to pixel values being integers, the actual iterations taken and the amount moved in each iteration
@@ -291,13 +293,17 @@ def labelFadeTransition(element, easingType, iterations, animationLength, includ
     # The transparency of an element should either be full (255) or transparent (0) for transitioning.
     # Note: animationLength is in milliseconds, includeBackground/includeText are booleans, and originalBGColour/
     # originalTextColour are RGB values e.g. 255, 255, 255
+    # Iterations should be kept to a value < 300 to ensure the animation length is dependent on the wait statement
+    # and not the loop speed for more precision control.
     targetTransparency = 255
     if easingType == "EaseInIncrease":
         element.setStyleSheet(f"background-color: rgba({originalBGColour}, 0); color: rgba({originalTextColour}, 0)")
         print("Mode set to Ease In (increase transparency)")
         for i in range(1, iterations + 1):
             completionValue = pow(i / iterations, 3)
-            print(round(completionValue*targetTransparency))
+            # Fix for flickering issue:
+            if completionValue < 0.008:
+                completionValue = 0.008
             if includeBackground and not includeText:
                 element.setStyleSheet(
                     f"background-color: rgba({originalBGColour}, {round(targetTransparency * completionValue)}); color: rgba({originalTextColour},0);")
@@ -305,7 +311,6 @@ def labelFadeTransition(element, easingType, iterations, animationLength, includ
                 element.setStyleSheet(
                     f"color: rgba({originalTextColour}, {round(targetTransparency * completionValue)}); background-color: rgba({originalBGColour},0);")
             else:
-                print("both")
                 element.setStyleSheet(
                     f"color: rgba({originalTextColour}, {round(targetTransparency * completionValue)});"
                     f" background-color: rgba({originalBGColour}, "
@@ -333,7 +338,51 @@ def labelFadeTransition(element, easingType, iterations, animationLength, includ
             QTimer.singleShot(round(animationLength / iterations), loop.quit)
             loop.exec_()
     else:
-        print("Invalid easing type! Must be either:\nEaseInIncrease, EaseInDecrease, EaseOutIncrease, EaseOutDecrease")
+        print("Invalid easing type! Must be either:\nEaseInIncrease, EaseInDecrease")
+
+
+def blurLabel(element, easingType, iterations, animationLength, originalBGColour, originalTextColour, targetTransparency):
+    # The target transparency value controls the amount of blur applied (the higher the value, the darker the blur)
+    # It should be kept consistent when calling the function to blur in / out.
+    # Iterations should be kept to a value < 300 to ensure the animation length is dependent on the wait statement
+    # and not the loop speed for more precision control.
+    if easingType == "BlurIn":
+        element.setStyleSheet(f"background-color: rgba({originalBGColour}, 0); color: rgba({originalTextColour}, 0)")
+        print("Mode set to Ease In Blur (in)")
+        for i in range(1, iterations + 1):
+            completionValue = pow(i / iterations, 3)
+            alphaVal = round(targetTransparency * completionValue)
+            print(alphaVal)
+            if alphaVal <= 1:
+                alphaVal = 5
+            # Fade in to target transparency
+            element.setStyleSheet(
+                f"color: rgba({originalTextColour}, {alphaVal});"
+                f" background-color: rgba({originalBGColour}, "
+                f"{alphaVal})")
+            loop = QEventLoop()
+            QTimer.singleShot(round(animationLength / iterations), loop.quit)
+            loop.exec_()
+    if easingType == "BlurOut":
+        element.setStyleSheet(f"background-color: rgba({originalBGColour}, 0); color: rgba({originalTextColour}, 0)")
+        print("Mode set to Ease In Blur (out)")
+        for i in range(1, iterations + 1):
+            completionValue = pow(i / iterations, 3)
+            alphaVal = round(targetTransparency * completionValue)
+            alphaVal = targetTransparency - alphaVal
+            print(alphaVal)
+            if alphaVal <= 1:
+                alphaVal = 5
+            # Fade in to target transparency
+            element.setStyleSheet(
+                f"color: rgba({originalTextColour}, {alphaVal});"
+                f" background-color: rgba({originalBGColour}, "
+                f"{alphaVal})")
+            loop = QEventLoop()
+            QTimer.singleShot(round(animationLength / iterations), loop.quit)
+            loop.exec_()
+        element.setStyleSheet(f"background-color: rgba({originalBGColour},0); color: rgba({originalTextColour}, 0);")
+
 
 # Generate screen elements functions
 def generateNewButton(parent, type, positionX, positionY, sizeX, sizeY, autoCenter, text):
@@ -577,7 +626,7 @@ class OmnimathUserInterface(QMainWindow):
 
     def __init__(self):
         global screenWidth, screenHeight, desktopGeometry, buttonFontSize, currentPath, mainFontSize, isFullscreen, \
-            resolutionString, autoScaleDisabled, soundEnabled, allAccounts
+            resolutionString, autoScaleDisabled, soundEnabled, allAccounts, loginScreenButtonsEnabled
         print("Initialising PyQt5 application... Hello world!")
         super(OmnimathUserInterface, self).__init__()
         self.setWindowTitle("OmniMath")
@@ -590,10 +639,11 @@ class OmnimathUserInterface(QMainWindow):
         calculateFontSize()
         allAccounts = {}
         autoScaleDisabled = False
+        loginScreenButtonsEnabled = True
         self.move(8, 0)
         self.resized.connect(self.rebuildScreen)
-        # self.openLoginScreen(skipIntroVideo=True)
-        self.tweenTestScreen()
+        self.openLoginScreen(skipIntroVideo=True)
+        #self.tweenTestScreen()
         #self.openAvatarCreationScreen(name="FirstName LastName")
 
     def resizeEvent(self, event):
@@ -601,7 +651,7 @@ class OmnimathUserInterface(QMainWindow):
         return super(OmnimathUserInterface, self).resizeEvent(event)
 
     def openLoginScreen(self, skipIntroVideo):
-        global screenWidth, screenHeight, currentPath, currentPage
+        global screenWidth, screenHeight, currentPath, currentPage, loginScreenButtonsEnabled
         loadAllAccounts()
         print("Window initialised.")
         currentPage = "mainMenu"
@@ -657,17 +707,66 @@ class OmnimathUserInterface(QMainWindow):
                                                            sizeY=round(screenWidth / 26), autoCenter=True,
                                                            text="Select account")
 
+        # Setup account creation widget by moving elements offscreen
+        menuBlurLabel = QLabel(menuWidget)
+        menuBlurLabel.move(-1 * screenWidth, -1 * screenHeight)
+        menuBlurLabel.resize(screenWidth, screenHeight)
+        menuBlurLabel.setStyleSheet("background-color: rgba(0,0,0,0); color: rgba(0,0,0,0);")
+
+        accountCreationBG = QLabel(menuWidget)
+        accountCreationBG.resize(round(screenWidth/6), round(screenHeight/5))
+        accountCreationBG.move(round(screenWidth/2 - screenWidth/12), round(screenHeight + screenHeight/5))
+        accountCreationBG.setStyleSheet("background-color: white; border-radius: 15px; border: 1px solid gray;")
+
+        accountCreationAvatar = QLabel(menuWidget)
+        accountCreationAvatar.resize(round(screenWidth / 9), round(screenHeight / 5.5))
+        accountCreationAvatar.move(round(screenWidth / 2 - screenWidth/18), round(screenHeight / 2 - screenHeight / 11))
+        # placeholderPixmap = QPixmap("OmniMathAssets/ImageAssets/avatarPending.png")
+        # placeholderPixmap = placeholderPixmap.scaled(round(accountCreationAvatar.width()),
+        #                                              round(accountCreationAvatar.height()))
+        # accountCreationAvatar.setPixmap(placeholderPixmap)
+        accountCreationAvatar.setStyleSheet("background-color: rgba(255,0,0,0);")
+        avatarShadow = QGraphicsDropShadowEffect()
+        avatarShadow.setOffset(0, 0)
+        avatarShadow.setBlurRadius(120)
+        avatarShadow.setColor(QColor("#000000"))
+        accountCreationAvatar.setGraphicsEffect(avatarShadow)
+
+        def openAccountCreation():
+            global loginScreenButtonsEnabled
+            if loginScreenButtonsEnabled:
+                loginScreenButtonsEnabled = False
+                print("Opening account creation menu")
+                playSound("buttonPress.wav")
+                print("blur in")
+                menuBlurLabel.move(0,0)
+                blurLabel(menuBlurLabel, "BlurIn", 200, 1400, "0,0,0", "0,0,0", 180)
+                moveScreenElement(accountCreationBG, round(screenWidth/2 - screenWidth/12), round(screenHeight/2 - screenHeight/10), "EaseOut",500,1000)
+                labelFadeTransition(accountCreationAvatar,"EaseInIncrease",200, 600, True, False, "255,0,0","0,0,0")
+
+            else:
+                print("ignored click")
+
         def exitFunction():
-            print("Exiting directly from menu.")
-            sys.exit()
+            global loginScreenButtonsEnabled
+            if loginScreenButtonsEnabled:
+                print("Exiting directly from menu.")
+                sys.exit()
+            else:
+                print("ignored click")
 
         def openSettings():
-            print("Opening settings from menu screen.")
-            playSound("buttonPress.wav")
-            self.openSettingsScreen()
+            global loginScreenButtonsEnabled
+            if loginScreenButtonsEnabled:
+                print("Opening settings from menu screen.")
+                playSound("buttonPress.wav")
+                self.openSettingsScreen()
+            else:
+                print("ignored click")
 
         menuWidget.settingsButton.clicked.connect(openSettings)
         menuWidget.exitButton.clicked.connect(exitFunction)
+        menuWidget.newAccountButton.clicked.connect(openAccountCreation)
 
     def rebuildScreen(self):
         print("Screen size adjusted - Updating scaling values")
@@ -720,47 +819,71 @@ class OmnimathUserInterface(QMainWindow):
         testObject.setFont(QFont("Arial", 20))
         testObject.setAlignment(Qt.AlignCenter)
 
-        latexRenderBox = QSvgWidget(tWidget)
-        latexRenderBox.resize(round(screenWidth / 4), round(screenHeight / 8))
-        latexRenderBox.move(round(screenWidth / 2 - screenWidth / 8), round(screenHeight / 2 - screenHeight / 16))
-
-        latexInputBox = QLineEdit(tWidget)
-        latexInputBox.resize(round(screenWidth / 4), round(screenHeight / 8))
-        latexInputBox.move(round(screenWidth / 2 - screenWidth / 8), round(screenHeight / 2 - screenHeight / 16))
-        latexInputBox.setStyleSheet("background-color: rgba(255,255,255,0); border-radius: 15px; border: 2px solid black;")
-        def renderInput():
-            input = latexInputBox.text()
-            print(input)
-            if input != "" and input.startswith(" ") == False and input[len(input) - 1] != " ":
-                try:
-                    plt.close()
-                    fig = plt.figure(figsize=(0.01, 0.01))
-                    fig.text(0, 0, r'${}$'.format(input), fontsize=mainFontSize+6)
-                    output = BytesIO()
-                    fig.savefig(output, dpi=300, transparent=True, format='svg',
-                                bbox_inches='tight', pad_inches=0.0)
-                    plt.close(fig)
-                    output.seek(0)
-                    latexRenderBox.load(output.read())
-                    latexRenderBox.show()
-
-                    # https://stackoverflow.com/questions/69816765/reading-latex-with-python-eval
-                    # https://realpython.com/python-eval-function/
-                    # https://github.com/aditeyabaral/gpython/blob/master/archive/Plotter.py
-                except Exception as e:
-                    print(f"Invalid expression! Error: {e}")
-
-        latexInputBox.textChanged.connect(renderInput)
+        # latexRenderBox = QSvgWidget(tWidget)
+        # latexRenderBox.resize(round(screenWidth / 4), round(screenHeight / 8))
+        # latexRenderBox.move(round(screenWidth / 2 - screenWidth / 8), round(screenHeight / 2 - screenHeight / 16))
+        #
+        # latexInputBox = QLineEdit(tWidget)
+        # latexInputBox.resize(round(screenWidth / 4), round(screenHeight / 8))
+        # latexInputBox.move(round(screenWidth / 2 - screenWidth / 8), round(screenHeight / 2 - screenHeight / 16))
+        # latexInputBox.setStyleSheet("background-color: rgba(255,255,255,0); border-radius: 15px; border: 2px solid black;")
+        # def renderInput():
+        #     input = latexInputBox.text()
+        #     print(input)
+        #     if input != "" and input.startswith(" ") == False and input[len(input) - 1] != " ":
+        #         try:
+        #             plt.close()
+        #             fig = plt.figure(figsize=(0.01, 0.01))
+        #             fig.text(0, 0, r'${}$'.format(input), fontsize=mainFontSize+6)
+        #             output = BytesIO()
+        #             fig.savefig(output, dpi=300, transparent=True, format='svg',
+        #                         bbox_inches='tight', pad_inches=0.0)
+        #             plt.close(fig)
+        #             output.seek(0)
+        #             latexRenderBox.load(output.read())
+        #             latexRenderBox.show()
+        #
+        #             # https://stackoverflow.com/questions/69816765/reading-latex-with-python-eval
+        #             # https://realpython.com/python-eval-function/
+        #             # https://github.com/aditeyabaral/gpython/blob/master/archive/Plotter.py
+        #         except Exception as e:
+        #             print(f"Invalid expression! Error: {e}")
+        #
+        # latexInputBox.textChanged.connect(renderInput)
 
         # loop = QEventLoop()
         # QTimer.singleShot(2000, loop.quit)
         # loop.exec_()
+
+        # Blur testing
+        testBlurLabelBG = QLabel(tWidget)
+        testBlurLabelBG.move(0,0)
+        testBlurLabelBG.resize(screenWidth,screenHeight)
+        testBlurLabelBG.setStyleSheet("background-color: white;")
+        pixmap = QPixmap("OmniMathAssets/ImageAssets/MenuScreenBGStatic.png")
+        pixmap = pixmap.scaled(screenWidth, screenHeight)
+        testBlurLabelBG.setPixmap(pixmap)
+
+        testBlurActual = QLabel(tWidget)
+        testBlurActual.move(0, 0)
+        testBlurActual.resize(screenWidth, screenHeight)
+        testBlurActual.setStyleSheet("background-color: rgba(0,0,0,0)")
+
+        loop = QEventLoop()
+        QTimer.singleShot(2000, loop.quit)
+        loop.exec_()
+
+        print("blur in")
+        blurLabel(testBlurActual, "BlurIn", 200, 1400, "0,0,0", "0,0,0", 180)
+        # blurLabel(testBlurActual, "BlurOut", 100, 700, "0,0,0", "0,0,0", 150)
+
+        # Fade in / out testing
         # labelFadeTransition(testObject,"EaseInDecrease",400,1500,True,True,"255,0,0","0,0,0")
-        # loop = QEventLoop()
-        # QTimer.singleShot(4000, loop.quit)
-        # loop.exec_()
+        # # loop = QEventLoop()
+        # # QTimer.singleShot(4000, loop.quit)
+        # # loop.exec_()
         # print("fade in")
-        # labelFadeTransition(testObject, "EaseInIncrease", 100, 5000, True, True, "255,0,0", "0,0,0")
+        # labelFadeTransition(testObject, "EaseInIncrease", 1000, 3000, True, True, "0,255,0", "0,0,0")
         # print("Done")
 
 
