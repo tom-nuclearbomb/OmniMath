@@ -237,15 +237,18 @@ def moveScreenElement(element, newPositionX, newPositionY, easingType, iteration
         differenceY = newPositionY - originalPositionY
         iterationXDifference = round(differenceX / iterations)
         iterationYDifference = round(differenceY / iterations)
-        iterationsActual = round(differenceX / iterationXDifference)
-        for i in range(1, iterationsActual + 1):
-            currentPositionX = element.x()
-            currentPositionY = element.y()
-            element.move(round(currentPositionX + iterationXDifference), round(currentPositionY + iterationYDifference))
-            loop = QEventLoop()
-            QTimer.singleShot(round(animationLength / iterationsActual), loop.quit)
-            loop.exec_()
-        element.move(round(newPositionX), round(newPositionY))
+        if iterationXDifference != 0 and iterationYDifference != 0:
+            iterationsActual = round(differenceX / iterationXDifference)
+            for i in range(1, iterationsActual + 1):
+                currentPositionX = element.x()
+                currentPositionY = element.y()
+                element.move(round(currentPositionX + iterationXDifference), round(currentPositionY + iterationYDifference))
+                loop = QEventLoop()
+                QTimer.singleShot(round(animationLength / iterationsActual), loop.quit)
+                loop.exec_()
+            element.move(round(newPositionX), round(newPositionY))
+        else:
+            print("Ignored transition request due to no change.")
     elif easingType == "Bezier":
         print("Mode set to Bezier")
         # Uses the Bezier curve to apply a multiplier to the element's position, which allows for a smooth transition
@@ -282,6 +285,64 @@ def moveScreenElement(element, newPositionX, newPositionY, easingType, iteration
             completionValue = 1 - pow((1 - (i / iterations)), 3)
             element.move(round(originalPositionX + (newPositionX - originalPositionX) * completionValue),
                          round(originalPositionY + (newPositionY - originalPositionY) * completionValue))
+            loop = QEventLoop()
+            QTimer.singleShot(round(animationLength / iterations), loop.quit)
+            loop.exec_()
+        element.move(round(newPositionX), round(newPositionY))
+    else:
+        print("Invalid easing type! Must be either:\nLinear, Bezier, EaseIn, EaseOut")
+
+def moveAndResizeScreenElement(element, newPositionX, newPositionY, newWidth, newHeight, easingType, iterations, animationLength):
+    # For equations of the curves used to calculate the multiplier, see https://www.desmos.com/calculator/2lormzlbhu
+    # Iterations should be kept to a value < 800 to ensure the animation length is dependent on the wait statement
+    # and not the loop speed for more precision control.
+    if easingType == "Bezier":
+        print("Mode set to Bezier")
+        # Uses the Bezier curve to apply a multiplier to the element's position, which allows for a smooth transition
+        # with an ease in/out appearance.
+        originalPositionX = round(element.x())
+        originalPositionY = round(element.y())
+        originalWidth = round(element.width())
+        originalHeight = round(element.height())
+        for i in range(1, iterations + 1):
+            completionValue = i / iterations * i / iterations * (3 - 2 * (i / iterations))
+            element.move(round(originalPositionX + (newPositionX - originalPositionX) * completionValue),
+                         round(originalPositionY + (newPositionY - originalPositionY) * completionValue))
+            element.resize(round(originalWidth + (newWidth - originalWidth) * completionValue), round(originalHeight + (newHeight - originalHeight) * completionValue))
+            loop = QEventLoop()
+            QTimer.singleShot(round(animationLength / iterations), loop.quit)
+            loop.exec_()
+        element.move(round(newPositionX), round(newPositionY))
+    elif easingType == "EaseIn":
+        print("Mode set to Ease In")
+        # Uses a cubic curve to create an ease in multiplier for the transition.
+        originalPositionX = round(element.x())
+        originalPositionY = round(element.y())
+        originalWidth = round(element.width())
+        originalHeight = round(element.height())
+        for i in range(1, iterations + 1):
+            completionValue = pow((i / iterations), 3)
+            element.move(round(originalPositionX + (newPositionX - originalPositionX) * completionValue),
+                         round(originalPositionY + (newPositionY - originalPositionY) * completionValue))
+            element.resize(round(originalWidth + (newWidth - originalWidth) * completionValue),
+                           round(originalHeight + (newHeight - originalHeight) * completionValue))
+            loop = QEventLoop()
+            QTimer.singleShot(round(animationLength / iterations), loop.quit)
+            loop.exec_()
+        element.move(round(newPositionX), round(newPositionY))
+    elif easingType == "EaseOut":
+        print("Mode set to Ease Out")
+        # Uses the curve y = 1 - (1-x)^3 to create an ease out multiplier.
+        originalPositionX = round(element.x())
+        originalPositionY = round(element.y())
+        originalWidth = round(element.width())
+        originalHeight = round(element.height())
+        for i in range(1, iterations + 1):
+            completionValue = 1 - pow((1 - (i / iterations)), 3)
+            element.move(round(originalPositionX + (newPositionX - originalPositionX) * completionValue),
+                         round(originalPositionY + (newPositionY - originalPositionY) * completionValue))
+            element.resize(round(originalWidth + (newWidth - originalWidth) * completionValue),
+                           round(originalHeight + (newHeight - originalHeight) * completionValue))
             loop = QEventLoop()
             QTimer.singleShot(round(animationLength / iterations), loop.quit)
             loop.exec_()
@@ -466,6 +527,21 @@ def generateNewButton(parent, type, positionX, positionY, sizeX, sizeY, autoCent
         icon = QIcon("OmniMathAssets/ImageAssets/diceIcon.png")
         button.setIcon(icon)
         button.setIconSize(QSize(round(sizeX / 1.8), round(sizeY / 1.8)))
+    elif type == "ConfirmSlim":
+        style = "QPushButton { background-color: #c2c2c2; border: 1px solid gray; font-family: " \
+                "'Arial'; font-size: " + str(
+            buttonFontSize) + "px; font-style: bold; color: #303030; border-radius: 13px;}" \
+                              "QPushButton:pressed {background-color: #15ff00; border: 2px solid black; border-size: 10px; font-family: 'Arial';" \
+                              "font-size: " + str(
+            buttonFontSize) + "px; font-style: bold; color: white; border-radius: 14px;}" \
+                              "QPushButton:hover:!pressed {background-color: #0eab00; border: 2px solid black; font-family: 'Arial';" \
+                              "font-size: " + str(
+            buttonFontSize + 1) + "px; font-style: bold; color: #000000; border-radius: 15px;}"
+        button.setFlat(True)
+        button.setAutoFillBackground(True)
+        icon = QIcon("OmniMathAssets/ImageAssets/checkIcon.png")
+        button.setIcon(icon)
+        button.setIconSize(QSize(round(sizeX / 1.8), round(sizeY / 1.8)))
     button.setStyleSheet(style)
     return button
 
@@ -626,7 +702,8 @@ class OmnimathUserInterface(QMainWindow):
 
     def __init__(self):
         global screenWidth, screenHeight, desktopGeometry, buttonFontSize, currentPath, mainFontSize, isFullscreen, \
-            resolutionString, autoScaleDisabled, soundEnabled, allAccounts, loginScreenButtonsEnabled
+            resolutionString, autoScaleDisabled, soundEnabled, allAccounts, loginScreenButtonsEnabled, \
+            resizeModeActive, storedResizeWidth, storedResizeHeight
         print("Initialising PyQt5 application... Hello world!")
         super(OmnimathUserInterface, self).__init__()
         self.setWindowTitle("OmniMath")
@@ -642,7 +719,11 @@ class OmnimathUserInterface(QMainWindow):
         loginScreenButtonsEnabled = True
         self.move(8, 0)
         self.resized.connect(self.rebuildScreen)
+        resizeModeActive = False
+        storedResizeWidth = self.width()
+        storedResizeHeight = self.height()
         self.openLoginScreen(skipIntroVideo=True)
+
         #self.tweenTestScreen()
         #self.openAvatarCreationScreen(name="FirstName LastName")
 
@@ -714,8 +795,8 @@ class OmnimathUserInterface(QMainWindow):
         menuBlurLabel.setStyleSheet("background-color: rgba(0,0,0,0); color: rgba(0,0,0,0);")
 
         accountCreationBG = QLabel(menuWidget)
-        accountCreationBG.resize(round(screenWidth/6), round(screenHeight/5))
-        accountCreationBG.move(round(screenWidth/2 - screenWidth/12), round(screenHeight + screenHeight/5))
+        accountCreationBG.resize(round(screenWidth/6), round(screenHeight/4))
+        accountCreationBG.move(round(screenWidth/2 - screenWidth/12), round(screenHeight + screenHeight/4))
         accountCreationBG.setStyleSheet("background-color: white; border-radius: 15px; border: 1px solid gray;")
 
         accountCreationAvatar = QLabel(menuWidget)
@@ -731,6 +812,9 @@ class OmnimathUserInterface(QMainWindow):
         avatarShadow.setBlurRadius(120)
         avatarShadow.setColor(QColor("#000000"))
         accountCreationAvatar.setGraphicsEffect(avatarShadow)
+        avatarPixmap = QPixmap("OmniMathAssets/ImageAssets/defaultAvatar.png")
+        avatarPixmap = avatarPixmap.scaled(round(screenWidth / 9), round(screenHeight / 5.5))
+        accountCreationAvatar.setPixmap(avatarPixmap)
 
         def openAccountCreation():
             global loginScreenButtonsEnabled
@@ -741,7 +825,7 @@ class OmnimathUserInterface(QMainWindow):
                 print("blur in")
                 menuBlurLabel.move(0,0)
                 blurLabel(menuBlurLabel, "BlurIn", 200, 1400, "0,0,0", "0,0,0", 180)
-                moveScreenElement(accountCreationBG, round(screenWidth/2 - screenWidth/12), round(screenHeight/2 - screenHeight/10), "EaseOut",500,1000)
+                moveScreenElement(accountCreationBG, round(screenWidth/2 - screenWidth/12), round(screenHeight/2 - screenHeight/8), "EaseOut",500,1000)
                 labelFadeTransition(accountCreationAvatar,"EaseInIncrease",200, 600, True, False, "255,0,0","0,0,0")
 
             else:
@@ -769,32 +853,186 @@ class OmnimathUserInterface(QMainWindow):
         menuWidget.newAccountButton.clicked.connect(openAccountCreation)
 
     def rebuildScreen(self):
-        print("Screen size adjusted - Updating scaling values")
-        global screenWidth, screenHeight, isFullscreen, app, currentPage, buttonFontSize, mainFontSize, resolutionString, autoScaleDisabled
-        if not autoScaleDisabled:
+        global screenWidth, screenHeight, isFullscreen, app, currentPage, buttonFontSize, mainFontSize, resolutionString, autoScaleDisabled, resizeModeActive, storedResizeWidth, storedResizeHeight
+        if not resizeModeActive and not autoScaleDisabled:
+            resizeModeActive = True
+            print("Screen size adjusted - Starting resize mode...")
+            self.resizeWidget = QWidget(self)
+            self.setCentralWidget(self.resizeWidget)
+            self.resizeWidget.move(0,0)
+            self.resizeWidget.resize(screenWidth, screenHeight)
+            self.resizeWidget.background = QLabel(self.resizeWidget)
+            self.resizeWidget.background.move(0,0)
+            self.resizeWidget.background.setStyleSheet("background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0,stop: 0 #d6d6d6, "
+                               "stop: 1 #8c8c8c);")
+            self.resizeWidget.background.resize(self.width(), self.height())
+            self.resizeWidget.cardBG = QLabel(self.resizeWidget)
+            self.resizeWidget.cardBG.resize(round(self.width()/4), round(self.height()/4))
+            self.resizeWidget.cardBG.move(round(self.width()/2 - self.width()/8), round(self.height()/2 - self.height()/8))
+            self.resizeWidget.cardBG.setStyleSheet("background-color: #242424; border-radius: 15px; border: 2px solid black;")
+            self.resizeWidget.cardTitle = QLabel(self.resizeWidget)
+            self.resizeWidget.cardTitle.resize(round(self.width() / 4), round(self.height() / 14))
+            self.resizeWidget.cardTitle.move(round(self.width() / 2 - self.width() / 8),
+                                          round(self.height() / 2 - self.height() / 8))
+            self.resizeWidget.cardTitle.setAlignment(Qt.AlignCenter)
+            titleFont = QFont("Arial", round(mainFontSize * 1.3))
+            titleFont.setBold(True)
+            self.resizeWidget.cardTitle.setFont(titleFont)
+            self.resizeWidget.cardTitle.setStyleSheet(
+                "color: white;")
+            self.resizeWidget.cardTitle.setText("Resize mode active")
+
+            self.resizeWidget.cardSubtitle = QLabel(self.resizeWidget)
+            self.resizeWidget.cardSubtitle.resize(round(self.width() / 4), round(self.height() / 14))
+            self.resizeWidget.cardSubtitle.move(round(self.width() / 2 - self.width() / 8),
+                                             round(self.height() / 2 - self.height() / 11))
+            self.resizeWidget.cardSubtitle.setAlignment(Qt.AlignCenter)
+            subtitleFont = QFont("Arial", round(mainFontSize * 0.45))
+            subtitleFont.setBold(True)
+            self.resizeWidget.cardSubtitle.setFont(subtitleFont)
+            self.resizeWidget.cardSubtitle.setStyleSheet(
+                "color: gray;")
+            self.resizeWidget.cardSubtitle.setText("Drag the corners of the window or select options below.")
+
+            self.resizeWidget.cardResolution = QLabel(self.resizeWidget)
+            self.resizeWidget.cardResolution.resize(round(self.width() / 4), round(self.height() / 14))
+            self.resizeWidget.cardResolution.move(round(self.width() / 2 - self.width() / 8),
+                                                round(self.height() / 2 + self.height() / 14))
+            self.resizeWidget.cardResolution.setAlignment(Qt.AlignCenter)
+            resolutionFont = QFont("Arial", round(mainFontSize * 0.38))
+            resolutionFont.setBold(True)
+            self.resizeWidget.cardResolution.setFont(resolutionFont)
+            self.resizeWidget.cardResolution.setStyleSheet(
+                "color: gray;")
+            self.resizeWidget.cardResolution.setText(f"Current Resolution: {resolutionString}")
+            def confirmChanges():
+                global resizeModeActive
+                if currentPage == "settings":
+                    resizeModeActive = False
+                    self.openSettingsScreen()
+                elif currentPage == "mainMenu":
+                    resizeModeActive = False
+                    self.openLoginScreen(skipIntroVideo=True)
+                elif currentPage == "avatarCreation":
+                    resizeModeActive = False
+                    self.openAvatarCreationScreen()
+
+            self.resizeWidget.confirmBtn = generateNewButton(self.resizeWidget, type="ConfirmSlim", positionX=round(screenWidth / 2 - screenWidth/24),
+                                                  positionY=round(screenHeight/2),
+                                                  sizeX=round(screenWidth / 12),
+                                                  sizeY=round(screenWidth / 20), autoCenter=False, text=" Done")
+            self.resizeWidget.confirmBtn.clicked.connect(confirmChanges)
             if isFullscreen:
                 screenWidth = self.width()
+                storedResizeWidth = screenWidth
                 screenHeight = self.height()
+                storedResizeHeight = screenHeight
+                self.resizeWidget.background.resize(screenWidth, screenHeight)
+                self.resizeWidget.resize(screenWidth, screenHeight)
                 resolutionString = str(screenWidth) + "x" + str(screenHeight)
-                buttonFontSize = round(screenWidth * 0.01)
-                mainFontSize = round(screenWidth * 0.01 + 2)
                 print(f"Fullscreen resolution is now {resolutionString}")
-            else:
-                screenWidth = self.width()
-                screenHeight = self.height()
-                resolutionString = str(screenWidth) + "x" + str(screenHeight)
-                buttonFontSize = round(screenWidth * 0.01)
-                mainFontSize = round(screenWidth * 0.01)
-                print(f"Normal resolution is now {resolutionString}")
-            calculateFontSize()
-            print(
-                f"Updated screen width and height values:\nW: {screenWidth}\nH: {screenHeight}\nNew font size: {mainFontSize}")
-            if currentPage == "settings":
-                self.openSettingsScreen()
-            elif currentPage == "mainMenu":
-                self.openLoginScreen(skipIntroVideo=True)
-            elif currentPage == "avatarCreation":
-                self.openAvatarCreationScreen()
+                calculateFontSize()
+                titleFont = QFont("Arial", round(mainFontSize * 1.3))
+                titleFont.setBold(True)
+                self.resizeWidget.cardTitle.setFont(titleFont)
+                subtitleFont = QFont("Arial", round(mainFontSize * 0.45))
+                subtitleFont.setBold(True)
+                self.resizeWidget.cardSubtitle.setFont(subtitleFont)
+                resolutionFont = QFont("Arial", round(mainFontSize * 0.38))
+                resolutionFont.setBold(True)
+                self.resizeWidget.cardResolution.setFont(resolutionFont)
+                self.resizeWidget.cardResolution.setText(f"Adjusting OmniMath...")
+
+                moveAndResizeScreenElement(self.resizeWidget.cardBG, round(self.width() / 2 - self.width() / 6),
+                                           round(self.height() / 2 - self.height() / 8),
+                                           round(self.width() / 3),
+                                           round(self.height() / 4), "Bezier", 300, 220)
+                moveAndResizeScreenElement(self.resizeWidget.cardTitle,
+                                           round(self.width() / 2 - self.width() / 6),
+                                           round(self.height() / 2 - self.height() / 8),
+                                           round(self.width() / 3),
+                                           round(self.height() / 14), "Bezier", 300, 220)
+                moveAndResizeScreenElement(self.resizeWidget.cardSubtitle,
+                                           round(self.width() / 2 - self.width() / 6),
+                                           round(self.height() / 2 - self.height() / 11),
+                                           round(self.width() / 3), round(self.height() / 14), "Bezier", 300,
+                                           220)
+                moveAndResizeScreenElement(self.resizeWidget.confirmBtn,
+                                           round(self.width() / 2 - self.width() / 24),
+                                           round(self.height() / 2),
+                                           round(self.width() / 12),
+                                           round(self.height() / 20), "Bezier", 300,
+                                           220)
+                moveAndResizeScreenElement(self.resizeWidget.cardResolution,
+                                           round(self.width() / 2 - self.width() / 6),
+                                           round(self.height() / 2 + self.height() / 14),
+                                           round(self.width() / 3), round(self.height() / 14), "Bezier", 300,
+                                           220)
+                # Update button icon and font size
+                icon = QIcon("OmniMathAssets/ImageAssets/checkIcon.png")
+                self.resizeWidget.confirmBtn.setIcon(icon)
+                self.resizeWidget.confirmBtn.setIconSize(QSize(round(self.resizeWidget.confirmBtn.width() / 1.8),
+                                                               round(self.resizeWidget.confirmBtn.height() / 1.8)))
+                self.resizeWidget.confirmBtn.setFont(QFont("Arial", buttonFontSize))
+                self.resizeWidget.cardResolution.setText(f"Current Resolution: {resolutionString}")
+            # Resizing loop
+            while resizeModeActive and not isFullscreen:
+                if self.width() != storedResizeWidth or self.height() != storedResizeHeight:
+                    self.resizeWidget.background.resize(self.width(), self.height())
+                    screenWidth = self.width()
+                    storedResizeWidth = screenWidth
+                    screenHeight = self.height()
+                    storedResizeHeight = screenHeight
+                    self.resizeWidget.resize(screenWidth, screenHeight)
+                    resolutionString = str(screenWidth) + "x" + str(screenHeight)
+                    print(f"Normal resolution is now {resolutionString}")
+                    calculateFontSize()
+                    titleFont = QFont("Arial", round(mainFontSize * 1.3))
+                    titleFont.setBold(True)
+                    self.resizeWidget.cardTitle.setFont(titleFont)
+                    subtitleFont = QFont("Arial", round(mainFontSize * 0.45))
+                    subtitleFont.setBold(True)
+                    self.resizeWidget.cardSubtitle.setFont(subtitleFont)
+                    resolutionFont = QFont("Arial", round(mainFontSize * 0.38))
+                    resolutionFont.setBold(True)
+                    self.resizeWidget.cardResolution.setFont(resolutionFont)
+
+                    self.resizeWidget.cardResolution.setText(f"Adjusting OmniMath...")
+                    moveAndResizeScreenElement(self.resizeWidget.cardBG, round(self.width() / 2 - self.width() / 6),
+                                               round(self.height() / 2 - self.height() / 8),
+                                               round(self.width() / 3),
+                                               round(self.height() / 4), "Bezier", 300, 220)
+                    moveAndResizeScreenElement(self.resizeWidget.cardTitle,
+                                               round(self.width() / 2 - self.width() / 6),
+                                               round(self.height() / 2 - self.height() / 8),
+                                               round(self.width() / 3),
+                                               round(self.height() / 14), "Bezier", 300, 220)
+                    moveAndResizeScreenElement(self.resizeWidget.cardSubtitle,
+                                               round(self.width() / 2 - self.width() / 6),
+                                               round(self.height() / 2 - self.height() / 11),
+                                               round(self.width() / 3), round(self.height() / 14), "Bezier", 300,
+                                               220)
+                    moveAndResizeScreenElement(self.resizeWidget.confirmBtn,
+                                               round(self.width() / 2 - self.width() / 24),
+                                               round(self.height() / 2),
+                                               round(self.width() / 12),
+                                               round(self.height() / 20), "Bezier", 300,
+                                               220)
+                    moveAndResizeScreenElement(self.resizeWidget.cardResolution,
+                                               round(self.width() / 2 - self.width() / 6),
+                                               round(self.height() / 2 + self.height() / 14),
+                                               round(self.width() / 3), round(self.height() / 14), "Bezier", 300,
+                                               220)
+                    # Update button icon and font size
+                    icon = QIcon("OmniMathAssets/ImageAssets/checkIcon.png")
+                    self.resizeWidget.confirmBtn.setIcon(icon)
+                    self.resizeWidget.confirmBtn.setIconSize(QSize(round(self.resizeWidget.confirmBtn.width() / 1.8),
+                                                                   round(self.resizeWidget.confirmBtn.height() / 1.8)))
+                    self.resizeWidget.confirmBtn.setFont(QFont("Arial", buttonFontSize))
+                    self.resizeWidget.cardResolution.setText(f"Current Resolution: {resolutionString}")
+                loop = QEventLoop()
+                QTimer.singleShot(400, loop.quit)
+                loop.exec_()
         else:
             print("Ignored resize")
 
@@ -945,14 +1183,9 @@ class OmnimathUserInterface(QMainWindow):
             if isFullscreen:
                 self.showFullScreen()
                 isFullscreen = True
-                # rebuild screen size
-                self.rebuildScreen()
-                playSound("toggleOn.wav")
             else:
                 self.showMaximized()
                 isFullscreen = False
-                self.rebuildScreen()
-                playSound("toggleOff.wav")
 
         fullscreenToggle.toggled.connect(updateFullscreenMode)
         resolutionHolder = QLabel(settingsWidget)
