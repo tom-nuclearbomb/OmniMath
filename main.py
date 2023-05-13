@@ -908,7 +908,7 @@ class OmnimathUserInterface(QMainWindow):
             self.resizeWidget.cardSubtitle.setFont(subtitleFont)
             self.resizeWidget.cardSubtitle.setStyleSheet(
                 "color: gray;")
-            self.resizeWidget.cardSubtitle.setText("Drag the corners of the window or select options below.")
+            self.resizeWidget.cardSubtitle.setText("Drag the corners of the window or confirm below.")
 
             self.resizeWidget.cardResolution = QLabel(self.resizeWidget)
             self.resizeWidget.cardResolution.resize(round(self.width() / 4), round(self.height() / 14))
@@ -1248,12 +1248,26 @@ class OmnimathUserInterface(QMainWindow):
         resizeLauncherLabel.setText("Open Resize Mode:")
 
         def openResizeMode():
-            global autoScaleDisabled, isFullscreen
+            global autoScaleDisabled, isFullscreen, screenWidth, screenHeight
             if isFullscreen:
-                isFullscreen = False
+                autoScaleDisabled = True
                 self.showMaximized()
-            autoScaleDisabled = False
-            self.rebuildScreen()
+                isFullscreen = False
+                screen = app.desktop()
+                availableGeometry = screen.availableGeometry()
+                avaiableWidth = availableGeometry.width()
+                avaiableHeight = availableGeometry.height()
+                screenWidth = avaiableWidth
+                screenHeight = avaiableHeight
+                self.setFixedSize(screenWidth, screenHeight)
+                resolutionString = str(screenWidth) + "x" + str(screenHeight)
+                print(resolutionString)
+                calculateFontSize()
+                autoScaleDisabled = False
+                self.rebuildScreen()
+            else:
+                autoScaleDisabled = False
+                self.rebuildScreen()
 
         resizeLaunchBtn = generateNewButton(settingsWidget, "ConfirmDefault", round(5.82*(screenWidth / 10)),
                                                    round(14*(screenHeight / 20)), round(screenWidth / 15),
