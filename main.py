@@ -39,7 +39,6 @@ else:
     os.environ["PATH"] = os.pathsep.join((pyvipsBinPath, os.environ["PATH"]))
 
 import pyvips
-
 pyvips.cache_set_max(0)
 
 global resolutionList, avatarSystemAssociations
@@ -584,6 +583,18 @@ def playSound(soundName):
         return
 
 
+def convertBinaryToBoolean(value):
+    if str(value) == "1":
+        return True
+    else:
+        return False
+
+def convertBooleanToBinary(value):
+    if value:
+        return 1
+    else:
+        return 0
+
 def loadAllAccounts():
     print("Loading all accounts into dictionary...")
     global allAccounts
@@ -595,6 +606,106 @@ def loadAllAccounts():
         print(accountDirectories)
         # Stop scanning at first level of directory
         break
+
+
+
+def loadSystemSettings(screenCurrentWidth, screenCurrentHeight, maxWidth, maxHeight):
+    # Check that database exists:
+    databaseExists = os.path.exists("OmniMathSettings.db")
+    global retainEnabled, soundEnabled, isFullscreen, screenWidth, screenHeight, windowXPos, windowYPos, autoScaleDisabled
+    if not databaseExists:
+        # Create new system settings database
+        db = sqlite3.connect("OmniMathSettings.db")
+        cursor = db.cursor()
+        cursor.execute('CREATE TABLE "Settings" ("retainWindowAttributes" INTEGER DEFAULT 1, "enableSounds" INTEGER, '
+                       '"enableFullscreen"	INTEGER DEFAULT 1, "windowGeometryWidth" INTEGER, "windowGeometryHeight" '
+                       'INTEGER, "windowGeometryXCoordinates" INTEGER,"windowGeometryYCoordinates" INTEGER);')
+        db.commit()
+        # Set default settings
+        valueInfo = [1, 1, 1, maxWidth, maxHeight, 0, 0]
+        cursor.execute("INSERT INTO Settings (retainWindowAttributes, enableSounds, enableFullscreen, "
+                       "windowGeometryWidth, windowGeometryHeight, windowGeometryXCoordinates, "
+                       "windowGeometryYCoordinates) VALUES (?,?,?,?,?,?,?)", valueInfo)
+        db.commit()
+        db.close()
+        print("Successfully created new system settings database.")
+        autoScaleDisabled = True
+        retainEnabled = True
+        soundEnabled = True
+        isFullscreen = True
+        screenWidth = maxWidth
+        screenHeight = maxHeight
+        windowXPos = 0
+        windowYPos = 0
+        print(f"Default system settings used:\nRetain mode enabled: {retainEnabled}\nSound Enabled: {soundEnabled}\n"
+              f"Fullscreen: {isFullscreen}\nScreen Width: {screenWidth}\nScreen Height: {screenHeight}\n"
+              f"Window X Position: {windowXPos}\nWindow Y Position: {windowYPos}")
+    else:
+        # Load all data into variables from database
+        db = sqlite3.connect("OmniMathSettings.db")
+        cursor = db.cursor()
+        cursor.execute("SELECT * FROM Settings")
+        results = cursor.fetchall()[0]
+        retainEnabled = convertBinaryToBoolean(results[0])
+        soundEnabled = convertBinaryToBoolean(results[1])
+        isFullscreen = convertBinaryToBoolean(results[2])
+        screenWidth = int(results[3])
+        screenHeight = int(results[4])
+        windowXPos = int(results[5])
+        windowYPos = int(results[6])
+        print(f"Loaded system settings:\nRetain mode enabled: {retainEnabled}\nSound Enabled: {soundEnabled}\n"
+              f"Fullscreen: {isFullscreen}\nScreen Width: {screenWidth}\nScreen Height: {screenHeight}\n"
+              f"Window X Position: {windowXPos}\nWindow Y Position: {windowYPos}")
+
+def saveSystemSettings(self):
+    global retainEnabled, soundEnabled, isFullscreen, screenWidth, screenHeight, windowXPos, windowYPos, autoScaleDisabled
+    # Check that database exists:
+    databaseExists = os.path.exists("OmniMathSettings.db")
+    screen = app.desktop()
+    monitorGeometry = screen.screenGeometry()
+    maxWidth = monitorGeometry.width()
+    maxHeight = monitorGeometry.height()
+    windowXPos = self.x()
+    windowYPos = self.y()
+    if not databaseExists:
+        # Create new system settings database
+        db = sqlite3.connect("OmniMathSettings.db")
+        cursor = db.cursor()
+        cursor.execute('CREATE TABLE "Settings" ("retainWindowAttributes" INTEGER DEFAULT 1, "enableSounds" INTEGER, '
+                       '"enableFullscreen"	INTEGER DEFAULT 1, "windowGeometryWidth" INTEGER, "windowGeometryHeight" '
+                       'INTEGER, "windowGeometryXCoordinates" INTEGER,"windowGeometryYCoordinates" INTEGER);')
+        db.commit()
+        # Set default settings
+        valueInfo = [1, 1, 1, maxWidth, maxHeight, 0, 0]
+        cursor.execute("INSERT INTO Settings (retainWindowAttributes, enableSounds, enableFullscreen, "
+                       "windowGeometryWidth, windowGeometryHeight, windowGeometryXCoordinates, "
+                       "windowGeometryYCoordinates) VALUES (?,?,?,?,?,?,?)", valueInfo)
+        db.commit()
+        db.close()
+        print("System settings database detected as missing - saving default settings.")
+        autoScaleDisabled = True
+    else:
+        # Save all data into database
+        db = sqlite3.connect("OmniMathSettings.db")
+        cursor = db.cursor()
+
+        retainEnabledBinary = convertBooleanToBinary(retainEnabled)
+        soundEnabledBinary = convertBooleanToBinary(soundEnabled)
+        isFullscreenBinary = convertBooleanToBinary(isFullscreen)
+        screenWidth = int(screenWidth)
+        screenHeight = int(screenHeight)
+        windowXPos = int(windowXPos)
+        windowYPos = int(windowYPos)
+        valueInfo = [retainEnabledBinary, soundEnabledBinary, isFullscreenBinary, screenWidth, screenHeight, windowXPos,
+                     windowYPos]
+        cursor.execute("UPDATE Settings SET retainWindowAttributes = ?, enableSounds = ?, enableFullscreen = ?, "
+                       "windowGeometryWidth = ?, windowGeometryHeight = ?, windowGeometryXCoordinates = ?, "
+                       "windowGeometryYCoordinates = ?", valueInfo)
+        db.commit()
+        db.close()
+        print(f"Saved system settings:\nRetain mode enabled: {retainEnabled}\nSound Enabled: {soundEnabled}\n"
+              f"Fullscreen: {isFullscreen}\nScreen Width: {screenWidth}\nScreen Height: {screenHeight}\n"
+              f"Window X Position: {windowXPos}\nWindow Y Position: {windowYPos}")
 
 
 def renderAvatar(avatarInfo):
@@ -709,41 +820,84 @@ account = {
 # Application code
 class OmnimathUserInterface(QMainWindow):
     resized = QtCore.pyqtSignal()
-
+    moved = QtCore.pyqtSignal()
     def __init__(self):
         global screenWidth, screenHeight, desktopGeometry, buttonFontSize, currentPath, mainFontSize, isFullscreen, \
             resolutionString, autoScaleDisabled, soundEnabled, allAccounts, loginScreenButtonsEnabled, \
-            resizeModeActive, storedResizeWidth, storedResizeHeight, screenMinWidth, screenMinHeight, retainEnabled
+            resizeModeActive, storedResizeWidth, storedResizeHeight, screenMinWidth, screenMinHeight, retainEnabled, \
+            windowXPos, windowYPos, moveEventCooldown
         print("Initialising PyQt5 application... Hello world!")
         super(OmnimathUserInterface, self).__init__()
         self.setWindowTitle("OmniMath")
         print(f"User screen width: {screenWidth}\nUser screen height (not including taskbar): {screenHeight}")
         self.setGeometry(desktopGeometry)
-        self.showFullScreen()
-
-        retainEnabled = True
-
-        isFullscreen = True
-        soundEnabled = True
+        screenMinWidth = 640
+        screenMinHeight = 640
+        moveEventCooldown = False
+        self.setMinimumSize(screenMinWidth, screenMinHeight)
+        screen = app.desktop()
+        monitorGeometry = screen.screenGeometry()
+        availableGeometry = screen.availableGeometry()
+        availableWidth = availableGeometry.width()
+        availableHeight = availableGeometry.height()
+        maxWidth = monitorGeometry.width()
+        maxHeight = monitorGeometry.height()
+        loadSystemSettings(availableWidth, availableHeight, maxWidth, maxHeight)
+        if retainEnabled:
+            # Apply saved settings
+            calculateFontSize()
+            autoScaleDisabled = True
+            self.move(windowXPos, windowYPos)
+            self.setFixedSize(screenWidth, screenHeight)
+            calculateFontSize()
+            if isFullscreen:
+                self.showFullScreen()
+            elif availableWidth == screenWidth and availableHeight == screenHeight:
+                self.showMaximized()
+            else:
+                self.showNormal()
+        else:
+            # Run default settings
+            autoScaleDisabled = True
+            self.showFullScreen()
+            screenWidth = self.width()
+            screenHeight = self.height()
+            calculateFontSize()
+            isFullscreen = True
+            soundEnabled = True
+            retainEnabled = False
+            saveSystemSettings(self)
         resolutionString = str(screenWidth) + "x" + str(screenHeight)
-        calculateFontSize()
         allAccounts = {}
-        autoScaleDisabled = False
         loginScreenButtonsEnabled = True
-        self.move(8, 0)
+
         self.resized.connect(self.rebuildScreen)
+        self.moved.connect(self.updateWindowPosition)
         resizeModeActive = False
         storedResizeWidth = self.width()
         storedResizeHeight = self.height()
-        self.openLoginScreen(skipIntroVideo=True)
-        screenMinWidth = 640
-        screenMinHeight = 640
-        self.setMinimumSize(screenMinWidth, screenMinHeight)
+        self.openLoginScreen(skipIntroVideo=False)
         #self.openAvatarCreationScreen(name="FirstName LastName")
 
     def resizeEvent(self, event):
         self.resized.emit()
         return super(OmnimathUserInterface, self).resizeEvent(event)
+
+    def moveEvent(self, event):
+        self.moved.emit()
+        return super(OmnimathUserInterface, self).moveEvent(event)
+
+
+    def updateWindowPosition(self):
+        global windowXPos, windowYPos, moveEventCooldown
+        if not moveEventCooldown:
+            moveEventCooldown = True
+            windowXPos = self.x()
+            windowYPos = self.y()
+            saveSystemSettings(self)
+            moveEventCooldown = False
+            print("Updated window position in saved settings")
+
 
     def openLoginScreen(self, skipIntroVideo):
         global screenWidth, screenHeight, currentPath, currentPage, loginScreenButtonsEnabled
@@ -760,7 +914,11 @@ class OmnimathUserInterface(QMainWindow):
             mediaPlayer.setVideoOutput(videoWidget)
             mediaPlayer.play()
             loop = QEventLoop()
-            QTimer.singleShot(8500, loop.quit)
+            QTimer.singleShot(1400, loop.quit)
+            loop.exec_()
+            playSound("startupSound.wav")
+            loop = QEventLoop()
+            QTimer.singleShot(7200, loop.quit)
             loop.exec_()
             videoWidget.close()
         menuWidget = QWidget(self)
@@ -775,12 +933,12 @@ class OmnimathUserInterface(QMainWindow):
         menuWidget.backgroundLabel.setStyleSheet("background-color: red;")
         menuWidget.backgroundLabel.setPixmap(staticBG)
         menuWidget.exitButton = generateNewButton(menuWidget, type="RedEnabled", positionX=round(screenWidth / 2),
-                                                  positionY=round(18 * (screenHeight / 20)),
+                                                  positionY=round(screenHeight + screenHeight / 26),
                                                   sizeX=round(screenWidth / 11),
                                                   sizeY=round(screenWidth / 26), autoCenter=True, text="Exit")
         menuWidget.settingsButton = generateNewButton(menuWidget, type="IconButtonSettings",
                                                       positionX=round(screenWidth / 2),
-                                                      positionY=round(16 * (screenHeight / 20)),
+                                                      positionY=round(screenHeight + screenHeight / 26),
                                                       sizeX=round(screenWidth / 11),
                                                       sizeY=round(screenWidth / 26), autoCenter=True,
                                                       text="  Settings")
@@ -791,13 +949,13 @@ class OmnimathUserInterface(QMainWindow):
 
         menuWidget.newAccountButton = generateNewButton(menuWidget, type="GreyBasicEnabled",
                                                         positionX=round(screenWidth / 2),
-                                                        positionY=round(14 * (screenHeight / 20)),
+                                                        positionY=round(screenHeight + screenHeight / 26),
                                                         sizeX=round(screenWidth / 11),
                                                         sizeY=round(screenWidth / 26), autoCenter=True,
                                                         text="Create account")
         menuWidget.selectAccountButton = generateNewButton(menuWidget, type="GreyBasicEnabled",
                                                            positionX=round(screenWidth / 2),
-                                                           positionY=round(12 * (screenHeight / 20)),
+                                                           positionY=round(screenHeight + screenHeight / 26),
                                                            sizeX=round(screenWidth / 11),
                                                            sizeY=round(screenWidth / 26), autoCenter=True,
                                                            text="Select account")
@@ -826,9 +984,21 @@ class OmnimathUserInterface(QMainWindow):
         avatarShadow.setBlurRadius(120)
         avatarShadow.setColor(QColor("#000000"))
         accountCreationAvatar.setGraphicsEffect(avatarShadow)
-        avatarPixmap = QPixmap("OmniMathAssets/ImageAssets/defaultAvatar.png")
-        avatarPixmap = avatarPixmap.scaled(round(screenWidth / 9), round(screenHeight / 5.5))
-        accountCreationAvatar.setPixmap(avatarPixmap)
+        # avatarPixmap = QPixmap("OmniMathAssets/ImageAssets/defaultAvatar.png")
+        # avatarPixmap = avatarPixmap.scaled(round(screenWidth / 9), round(screenHeight / 5.5))
+        # accountCreationAvatar.setPixmap(avatarPixmap)
+
+        # Move all buttons into place
+        loginScreenButtonsEnabled = False
+        moveScreenElement(menuWidget.selectAccountButton, round(screenWidth / 2 - screenWidth / 22),
+                          round(12 * (screenHeight / 20) - screenHeight / 52), "EaseOut", 100, 600)
+        moveScreenElement(menuWidget.newAccountButton,round(screenWidth / 2 - screenWidth / 22),
+                          round(14 * (screenHeight / 20) - screenHeight/52),"EaseOut",100,600)
+        moveScreenElement(menuWidget.settingsButton, round(screenWidth / 2 - screenWidth / 22),
+                          round(16 * (screenHeight / 20) - screenHeight / 52), "EaseOut", 100, 600)
+        moveScreenElement(menuWidget.exitButton, round(screenWidth / 2 - screenWidth / 22),
+                          round(18 * (screenHeight / 20) - screenHeight / 52), "EaseOut", 100, 600)
+        loginScreenButtonsEnabled = True
 
         def openAccountCreation():
             global loginScreenButtonsEnabled
@@ -841,14 +1011,18 @@ class OmnimathUserInterface(QMainWindow):
                 blurLabel(menuBlurLabel, "BlurIn", 200, 1400, "0,0,0", "0,0,0", 180)
                 moveScreenElement(accountCreationBG, round(screenWidth/2 - screenWidth/12), round(screenHeight/2 - screenHeight/8), "EaseOut",500,1000)
                 labelFadeTransition(accountCreationAvatar,"EaseInIncrease",200, 600, True, False, "255,0,0","0,0,0")
-
             else:
                 print("ignored click")
 
         def exitFunction():
             global loginScreenButtonsEnabled
             if loginScreenButtonsEnabled:
+                playSound("exitSound.wav")
                 print("Exiting directly from menu.")
+                menuWidget.exitButton.setText("Exiting...")
+                loginScreenButtonsEnabled = False
+                menuBlurLabel.move(0, 0)
+                blurLabel(menuBlurLabel, "BlurIn", 100, 2200, "0,0,0", "0,0,0", 255)
                 sys.exit()
             else:
                 print("ignored click")
@@ -926,11 +1100,16 @@ class OmnimathUserInterface(QMainWindow):
             self.setMaximumSize(3840, 2160)
             def confirmChanges():
                 if not confirmButtonLock:
-                    global resizeModeActive, autoScaleDisabled, resolutionString
+                    global resizeModeActive, autoScaleDisabled, resolutionString, soundEnabled
                     resolutionString = str(screenWidth) + "x" + str(screenHeight)
                     resizeModeActive = False
                     autoScaleDisabled = True
                     self.setFixedSize(screenWidth, screenHeight)
+                    saveSystemSettings(self)
+                    if not isFullscreen:
+                        playSound("buttonPress.wav")
+                    else:
+                        playSound("toggleOn.wav")
                     if currentPage == "settings":
                         self.openSettingsScreen()
                     elif currentPage == "mainMenu":
@@ -1007,7 +1186,16 @@ class OmnimathUserInterface(QMainWindow):
                         self.resizeWidget.confirmBtn.setIcon(icon)
                         self.resizeWidget.confirmBtn.setIconSize(QSize(round(self.resizeWidget.confirmBtn.width() / 1.8),
                                                                        round(self.resizeWidget.confirmBtn.height() / 1.8)))
-                        self.resizeWidget.confirmBtn.setFont(QFont("Arial", buttonFontSize))
+                        style = "QPushButton { background-color: #c2c2c2; border: 1px solid gray; font-family: " \
+                                "'Arial'; font-size: " + str(
+                            buttonFontSize) + "px; font-style: bold; color: #303030; border-radius: 13px;}" \
+                                              "QPushButton:pressed {background-color: #15ff00; border: 2px solid black; border-size: 10px; font-family: 'Arial';" \
+                                              "font-size: " + str(
+                            buttonFontSize) + "px; font-style: bold; color: white; border-radius: 14px;}" \
+                                              "QPushButton:hover:!pressed {background-color: #0eab00; border: 2px solid black; font-family: 'Arial';" \
+                                              "font-size: " + str(
+                            buttonFontSize + 1) + "px; font-style: bold; color: #000000; border-radius: 15px;}"
+                        self.resizeWidget.confirmBtn.setStyleSheet(style)
                         self.resizeWidget.cardResolution.setText(f"Current Resolution: {resolutionString}")
                         confirmButtonLock = False
                     loop = QEventLoop()
@@ -1018,7 +1206,7 @@ class OmnimathUserInterface(QMainWindow):
 
     def openSettingsScreen(self):
         global screenWidth, screenHeight, currentPath, mainFontSize, currentPage, isFullscreen, resolutionString, \
-            resolutionList, soundEnabled
+            resolutionList, soundEnabled, retainEnabled
         currentPage = "settings"
         settingsWidget = QWidget(self)
         self.setCentralWidget(settingsWidget)
@@ -1075,6 +1263,7 @@ class OmnimathUserInterface(QMainWindow):
                 self.showFullScreen()
                 isFullscreen = True
                 autoScaleDisabled = False
+                saveSystemSettings(self)
                 self.rebuildScreen()
             else:
                 print("MAXIMISED AND NORMALISED")
@@ -1091,6 +1280,8 @@ class OmnimathUserInterface(QMainWindow):
                 resolutionString = str(screenWidth) + "x" + str(screenHeight)
                 print(resolutionString)
                 calculateFontSize()
+                saveSystemSettings(self)
+                playSound("toggleOff.wav")
                 self.openSettingsScreen()
 
 
@@ -1145,7 +1336,6 @@ class OmnimathUserInterface(QMainWindow):
             availableGeometry = screen.availableGeometry()
             avaiableWidth = availableGeometry.width()
             avaiableHeight = availableGeometry.height()
-            print(maxWidth, maxHeight, avaiableWidth, avaiableHeight)
             if screenWidth == maxWidth and screenHeight == maxHeight and not isFullscreen:
                 print("Automatically maximising window")
                 self.showMaximized()
@@ -1155,6 +1345,7 @@ class OmnimathUserInterface(QMainWindow):
                 isFullscreen = False
                 calculateFontSize()
                 resolutionString = str(screenWidth) + "x" + str(screenHeight)
+                saveSystemSettings(self)
                 self.openSettingsScreen()
             else:
                 self.move(0,0)
@@ -1163,6 +1354,7 @@ class OmnimathUserInterface(QMainWindow):
                 isFullscreen = False
                 calculateFontSize()
                 resolutionString = str(screenWidth) + "x" + str(screenHeight)
+                saveSystemSettings(self)
                 self.openSettingsScreen()
 
         resolutionDropdown.currentTextChanged.connect(selectNewResolution)
@@ -1195,11 +1387,11 @@ class OmnimathUserInterface(QMainWindow):
             print(f"Sound enabled: {soundEnabled}")
             if soundEnabled:
                 playSound("toggleOn.wav")
+            else:
+                playSound("toggleOff.wav")
+            saveSystemSettings(self)
 
         soundToggle.toggled.connect(updateSoundSettings)
-
-        # Enable retain mode
-        retainEnabled = True
 
         retainHolder = QLabel(settingsWidget)
         retainHolder.resize(round(screenWidth / 4), round(screenHeight / 14))
@@ -1214,20 +1406,25 @@ class OmnimathUserInterface(QMainWindow):
         retainLabel.move(round(screenWidth / 3) + round(screenWidth / 20),
                         round(12*(screenHeight / 20)) - round(screenHeight / 28))
         retainLabel.resize(round(screenWidth / 5), round(screenHeight / 14))
-        retainLabel.setText("Launch with these settings:")
+        retainLabel.setText("Save settings for next time:")
         retainToggle = AnimatedToggleCheckbox(settingsWidget, sizeX=round(screenWidth / 24),
                                              sizeY=round(screenHeight / 14))
         retainToggle.move(round(5.9 * (screenWidth / 10)) - round(screenWidth / 48),
                          round(12*(screenHeight / 20)) - round(screenHeight / 28))
+        print(retainEnabled)
         if retainEnabled:
             retainToggle.click()
 
         def updateRetainModeSettings():
-            global retainEnabled
+            global retainEnabled, soundEnabled
             retainEnabled = retainToggle.isChecked()
-            print(f"Retain mode enabled: {soundEnabled}")
-            if retainEnabled:
+            print(f"Retain mode enabled: {retainEnabled}")
+            if retainEnabled and soundEnabled:
                 playSound("toggleOn.wav")
+            elif not retainEnabled and soundEnabled:
+                playSound("toggleOff.wav")
+
+            saveSystemSettings(self)
 
         retainToggle.toggled.connect(updateRetainModeSettings)
 
@@ -1249,6 +1446,7 @@ class OmnimathUserInterface(QMainWindow):
 
         def openResizeMode():
             global autoScaleDisabled, isFullscreen, screenWidth, screenHeight
+            playSound("buttonPress.wav")
             if isFullscreen:
                 autoScaleDisabled = True
                 self.showMaximized()
@@ -1264,9 +1462,11 @@ class OmnimathUserInterface(QMainWindow):
                 print(resolutionString)
                 calculateFontSize()
                 autoScaleDisabled = False
+                saveSystemSettings(self)
                 self.rebuildScreen()
             else:
                 autoScaleDisabled = False
+                saveSystemSettings(self)
                 self.rebuildScreen()
 
         resizeLaunchBtn = generateNewButton(settingsWidget, "ConfirmDefault", round(5.82*(screenWidth / 10)),
@@ -1275,6 +1475,7 @@ class OmnimathUserInterface(QMainWindow):
         resizeLaunchBtn.clicked.connect(openResizeMode)
 
         def goBackToMenu():
+            playSound("buttonPress.wav")
             self.openLoginScreen(skipIntroVideo=True)
 
         settingsWidget.exitBtn = generateNewButton(settingsWidget, "RedEnabled", round(screenWidth / 2),
@@ -1591,7 +1792,6 @@ def excepthook(exc_type, exc_value, exc_tb):
         loop.exec_()
         sys.exit()
     exitBtn.clicked.connect(exitFunction)
-
 
 sys.excepthook = excepthook
 
