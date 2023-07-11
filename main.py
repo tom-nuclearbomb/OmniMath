@@ -401,6 +401,44 @@ def labelFadeTransition(element, easingType, iterations, animationLength, includ
         print("Invalid easing type! Must be either:\nEaseInIncrease, EaseInDecrease")
 
 
+def imageFadeTransition(element, easingType, iterations, animationLength, pixmapPath):
+    width = element.width()
+    height = element.height()
+    pixmap = QPixmap(pixmapPath)
+    pixmap = pixmap.scaled(width, height)
+    element.setPixmap(pixmap)
+    if easingType == "EaseInIncrease":
+        opacityEffect = QGraphicsOpacityEffect()
+        opacityEffect.setOpacity(0)
+        element.setGraphicsEffect(opacityEffect)
+        print("Mode set to Ease In (increase transparency)")
+        for i in range(1, iterations + 1):
+            completionValue = round(pow(i / iterations, 3),1)
+            print(completionValue)
+            opacityEffect = QGraphicsOpacityEffect()
+            opacityEffect.setOpacity(completionValue)
+            element.setGraphicsEffect(opacityEffect)
+            loop = QEventLoop()
+            QTimer.singleShot(round(animationLength / iterations), loop.quit)
+            loop.exec_()
+    elif easingType == "EaseInDecrease":
+        opacityEffect = QGraphicsOpacityEffect()
+        opacityEffect.setOpacity(0)
+        element.setGraphicsEffect(opacityEffect)
+        print("Mode set to Ease In (decrease transparency)")
+        for i in range(1, iterations + 1):
+            completionValue = 1 - round(pow(i / iterations, 3),1)
+            print(completionValue)
+            opacityEffect = QGraphicsOpacityEffect()
+            opacityEffect.setOpacity(completionValue)
+            element.setGraphicsEffect(opacityEffect)
+            loop = QEventLoop()
+            QTimer.singleShot(round(animationLength / iterations), loop.quit)
+            loop.exec_()
+    else:
+        print("Invalid easing type! Must be either:\nEaseInIncrease, EaseInDecrease")
+
+
 def blurLabel(element, easingType, iterations, animationLength, originalBGColour, originalTextColour, targetTransparency):
     # The target transparency value controls the amount of blur applied (the higher the value, the darker the blur)
     # It should be kept consistent when calling the function to blur in / out.
@@ -447,6 +485,11 @@ def blurLabel(element, easingType, iterations, animationLength, originalBGColour
 # Generate screen elements functions
 def generateNewButton(parent, type, positionX, positionY, sizeX, sizeY, autoCenter, text):
     global buttonFontSize
+    # Round to avoid causing errors from floating values
+    sizeX = round(sizeX)
+    sizeY = round(sizeY)
+    positionX = round(positionX)
+    positionY = round(positionY)
     button = QPushButton(parent)
     # Set text
     button.setText(text)
@@ -525,7 +568,7 @@ def generateNewButton(parent, type, positionX, positionY, sizeX, sizeY, autoCent
         icon = QIcon("OmniMathAssets/ImageAssets/diceIcon.png")
         button.setIcon(icon)
         button.setIconSize(QSize(round(sizeX / 1.8), round(sizeY / 1.8)))
-    elif type == "ConfirmSlim":
+    elif type == "ConfirmSlimIcon":
         style = "QPushButton { background-color: #c2c2c2; border: 1px solid gray; font-family: " \
                 "'Arial'; font-size: " + str(
             buttonFontSize) + "px; font-style: bold; color: #303030; border-radius: 13px;}" \
@@ -540,7 +583,7 @@ def generateNewButton(parent, type, positionX, positionY, sizeX, sizeY, autoCent
         icon = QIcon("OmniMathAssets/ImageAssets/checkIcon.png")
         button.setIcon(icon)
         button.setIconSize(QSize(round(sizeX / 1.8), round(sizeY / 1.8)))
-    elif type == "ConfirmDefault":
+    elif type == "ConfirmSlimNoIcon":
         style = "QPushButton { background-color: #c2c2c2; border: 1px solid gray; font-family: " \
                 "'Arial'; font-size: " + str(
             buttonFontSize) + "px; font-style: bold; color: #303030; border-radius: 13px;}" \
@@ -551,8 +594,41 @@ def generateNewButton(parent, type, positionX, positionY, sizeX, sizeY, autoCent
                               "font-size: " + str(
             buttonFontSize + 1) + "px; font-style: bold; color: #000000; border-radius: 15px;}"
         button.setFlat(True)
+    elif type == "CancelSlimNoIcon":
+        style = "QPushButton { background-color: #c2c2c2; border: 1px solid gray; font-family: " \
+                "'Arial'; font-size: " + str(
+            buttonFontSize) + "px; font-style: bold; color: #303030; border-radius: 13px;}" \
+                              "QPushButton:pressed {background-color: #f50000; border: 2px solid black; border-size: 10px; font-family: 'Arial';" \
+                              "font-size: " + str(
+            buttonFontSize) + "px; font-style: bold; color: white; border-radius: 14px;}" \
+                              "QPushButton:hover:!pressed {background-color: #c20000; border: 2px solid black; font-family: 'Arial';" \
+                              "font-size: " + str(
+            buttonFontSize + 1) + "px; font-style: bold; color: #000000; border-radius: 15px;}"
+        button.setFlat(True)
     button.setStyleSheet(style)
     return button
+
+# Returns a QLabel which displays an infinite loading gif
+def generateLoader(parent, posX, posY, sizeX, sizeY, autoCenter):
+    print("Creating new loader element")
+    # Round to avoid causing errors from floating values
+    sizeX = round(sizeX)
+    sizeY = round(sizeY)
+    posX = round(posX)
+    posY = round(posY)
+    loader = QLabel(parent)
+    loader.resize(sizeX, sizeY)
+    if autoCenter:
+        loader.move(round(posX - sizeX/2), round(posY - sizeY/2))
+    else:
+        loader.move(round(posX), round(posY))
+    # Apply gif
+    loadingMovie = QMovie("OmniMathAssets/VideoAssets/loaderWhiteBG.gif")
+    loader.setMovie(loadingMovie)
+    size = QtCore.QSize(sizeX, sizeY)
+    loadingMovie.setScaledSize(size)
+    loadingMovie.start()
+    return loader
 
 
 def calculateFontSize():
@@ -595,19 +671,24 @@ def convertBooleanToBinary(value):
     else:
         return 0
 
-def loadAllAccounts():
+def loadAllAccountPaths():
     print("Loading all accounts into dictionary...")
     global allAccounts
     allAccounts = {}
     accountDirectories = []
     for _, dirs, files in os.walk("OmniMathUserProfiles"):
         for accountDirectory in dirs:
-            accountDirectories.append(f"OmniMathUserProfiles/{accountDirectory}")
-        print(accountDirectories)
-        # Stop scanning at first level of directory
+            accountDirectories.append(accountDirectory)
+        # Stop scanning at first level of directory and add all the paths to the dictionary for sorting
+        for accountDirectory in accountDirectories:
+            allAccounts[accountDirectory] = "OmniMathUserProfiles/" + accountDirectory
+        allAccountsUsernames = list(allAccounts.keys())
+        # Arrange in alphabetical order
+        allAccountsUsernames.sort()
+        allAccounts = {i: allAccounts[i] for i in allAccountsUsernames}
         break
 
-
+loadAllAccountPaths()
 
 def loadSystemSettings(screenCurrentWidth, screenCurrentHeight, maxWidth, maxHeight):
     # Check that database exists:
@@ -826,7 +907,6 @@ class OmnimathUserInterface(QMainWindow):
             resolutionString, autoScaleDisabled, soundEnabled, allAccounts, loginScreenButtonsEnabled, \
             resizeModeActive, storedResizeWidth, storedResizeHeight, screenMinWidth, screenMinHeight, retainEnabled, \
             windowXPos, windowYPos, moveEventCooldown
-        print("Initialising PyQt5 application... Hello world!")
         super(OmnimathUserInterface, self).__init__()
         self.setWindowTitle("OmniMath")
         print(f"User screen width: {screenWidth}\nUser screen height (not including taskbar): {screenHeight}")
@@ -876,7 +956,7 @@ class OmnimathUserInterface(QMainWindow):
         resizeModeActive = False
         storedResizeWidth = self.width()
         storedResizeHeight = self.height()
-        self.openLoginScreen(skipIntroVideo=False)
+        self.openLoginScreen(skipIntroVideo=True, skipButtonAnimations=True)
         #self.openAvatarCreationScreen(name="FirstName LastName")
 
     def resizeEvent(self, event):
@@ -899,9 +979,8 @@ class OmnimathUserInterface(QMainWindow):
             print("Updated window position in saved settings")
 
 
-    def openLoginScreen(self, skipIntroVideo):
-        global screenWidth, screenHeight, currentPath, currentPage, loginScreenButtonsEnabled
-        loadAllAccounts()
+    def openLoginScreen(self, skipIntroVideo, skipButtonAnimations):
+        global screenWidth, screenHeight, currentPath, currentPage, loginScreenButtonsEnabled, mainFontSize
         print("Window initialised.")
         currentPage = "mainMenu"
         if not skipIntroVideo:
@@ -974,43 +1053,143 @@ class OmnimathUserInterface(QMainWindow):
         accountCreationAvatar = QLabel(menuWidget)
         accountCreationAvatar.resize(round(screenWidth / 9), round(screenHeight / 5.5))
         accountCreationAvatar.move(round(screenWidth / 2 - screenWidth/18), round(screenHeight / 2 - screenHeight / 11))
-        # placeholderPixmap = QPixmap("OmniMathAssets/ImageAssets/avatarPending.png")
-        # placeholderPixmap = placeholderPixmap.scaled(round(accountCreationAvatar.width()),
-        #                                              round(accountCreationAvatar.height()))
-        # accountCreationAvatar.setPixmap(placeholderPixmap)
-        accountCreationAvatar.setStyleSheet("background-color: rgba(255,0,0,0);")
-        avatarShadow = QGraphicsDropShadowEffect()
-        avatarShadow.setOffset(0, 0)
-        avatarShadow.setBlurRadius(120)
-        avatarShadow.setColor(QColor("#000000"))
-        accountCreationAvatar.setGraphicsEffect(avatarShadow)
-        # avatarPixmap = QPixmap("OmniMathAssets/ImageAssets/defaultAvatar.png")
-        # avatarPixmap = avatarPixmap.scaled(round(screenWidth / 9), round(screenHeight / 5.5))
-        # accountCreationAvatar.setPixmap(avatarPixmap)
 
+        accountCreationTitle = QLabel(menuWidget)
+        accountCreationTitle.resize(round(screenWidth/3), round(screenHeight/10))
+        accountCreationTitle.setAlignment(Qt.AlignCenter)
+        accountCreationTitle.move(-1*screenWidth, -1*screenHeight)
+        titleFont = QFont("Arial", round(mainFontSize*1.8))
+        titleFont.setBold(True)
+        accountCreationTitle.setText("Welcome")
+        accountCreationTitle.setFont(titleFont)
+
+        loader = generateLoader(menuWidget, round(screenWidth / 2 - screenWidth / 16),
+                                round(screenHeight + screenHeight / 3), round(screenWidth / 8),
+                                round(screenWidth / 8), autoCenter=False)
+
+        menuWidget.confirmCreationBtn = generateNewButton(menuWidget, type="ConfirmSlimNoIcon",
+                                                          positionX=round(screenWidth / 2 + screenWidth / 20),
+                                                          positionY=round(screenHeight + screenHeight / 26),
+                                                          sizeX=round(screenWidth / 11),
+                                                          sizeY=round(screenWidth / 26), autoCenter=True,
+                                                          text="Let's go!")
+        menuWidget.cancelCreationBtn = generateNewButton(menuWidget, type="CancelSlimNoIcon",
+                                                         positionX=round(screenWidth / 2 - screenWidth / 20),
+                                                         positionY=round(screenHeight + screenHeight / 26),
+                                                         sizeX=round(screenWidth / 11),
+                                                         sizeY=round(screenWidth / 26), autoCenter=True,
+                                                         text="Cancel")
+
+        def launchAccountCreation():
+            global accountCreationButtonsEnabled
+            if accountCreationButtonsEnabled:
+                print("Launching account creation!")
+                labelFadeTransition(accountCreationTitle, "EaseInDecrease", 120, 400, False, True, "255,255,255",
+                                    "0,0,0")
+                accountCreationTitle.setText("Account Creation")
+
+                # Move buttons off screen and fade other elements
+                moveScreenElement(menuWidget.cancelCreationBtn,
+                                  round(screenWidth / 2 - screenWidth / 20 - screenWidth / 22),
+                                  round(1.4 * screenHeight), "Bezier", 250, 400)
+                moveScreenElement(menuWidget.confirmCreationBtn,
+                                  round(screenWidth / 2 + screenWidth / 20 - screenWidth / 22),
+                                  round(1.4 * screenHeight), "Bezier", 250, 400)
+                labelFadeTransition(accountCreationTitle, "EaseInIncrease", 120, 500, False, True, "255,255,255",
+                                    "0,0,0")
+                # Resize BG
+                moveAndResizeScreenElement(accountCreationBG, 0, 0, screenWidth,
+                                           screenHeight, "Bezier", 500, 800)
+                # Display loader
+                moveScreenElement(loader, round(screenWidth/2 - screenWidth/16),round(screenHeight/1.5), "Bezier",120,1000)
+            else:
+                print("Ignored click")
+
+        def cancelAccountCreation():
+            global loginScreenButtonsEnabled, accountCreationButtonsEnabled
+            if accountCreationButtonsEnabled:
+                print("Cancelled account creation")
+                labelFadeTransition(accountCreationTitle, "EaseInDecrease", 120, 400, True, True, "255,255,255",
+                                    "0,0,0")
+                accountCreationTitle.move(-1 * screenWidth, -1 * screenHeight)
+                accountCreationTitle.setText("Welcome")
+                accountCreationAvatar.setGraphicsEffect(None)
+                imageFadeTransition(accountCreationAvatar, "EaseInDecrease", 250, 600,
+                                    "OmniMathAssets/ImageAssets/defaultAvatar.png")
+                moveScreenElement(menuWidget.cancelCreationBtn,
+                                  round(screenWidth / 2 - screenWidth / 20 - screenWidth / 22),
+                                  round(1.4 * screenHeight), "Bezier", 250, 400)
+                moveScreenElement(menuWidget.confirmCreationBtn,
+                                  round(screenWidth / 2 + screenWidth / 20 - screenWidth / 22),
+                                  round(1.4 * screenHeight), "Bezier", 250, 400)
+                moveAndResizeScreenElement(accountCreationBG, round(screenWidth / 2 - screenWidth / 12),
+                                           round(screenHeight + screenHeight / 4), round(screenWidth / 6),
+                                           round(screenHeight / 4), "Bezier", 110, 1000)
+                blurLabel(menuBlurLabel, "BlurOut", 200, 1000, "0,0,0", "0,0,0", 180)
+                menuBlurLabel.move(-1 * screenWidth, -1 * screenHeight)
+                loginScreenButtonsEnabled = True
+            else:
+                print("Ignored click")
+
+        menuWidget.confirmCreationBtn.clicked.connect(launchAccountCreation)
+        menuWidget.cancelCreationBtn.clicked.connect(cancelAccountCreation)
         # Move all buttons into place
-        loginScreenButtonsEnabled = False
-        moveScreenElement(menuWidget.selectAccountButton, round(screenWidth / 2 - screenWidth / 22),
-                          round(12 * (screenHeight / 20) - screenHeight / 52), "EaseOut", 100, 600)
-        moveScreenElement(menuWidget.newAccountButton,round(screenWidth / 2 - screenWidth / 22),
-                          round(14 * (screenHeight / 20) - screenHeight/52),"EaseOut",100,600)
-        moveScreenElement(menuWidget.settingsButton, round(screenWidth / 2 - screenWidth / 22),
-                          round(16 * (screenHeight / 20) - screenHeight / 52), "EaseOut", 100, 600)
-        moveScreenElement(menuWidget.exitButton, round(screenWidth / 2 - screenWidth / 22),
-                          round(18 * (screenHeight / 20) - screenHeight / 52), "EaseOut", 100, 600)
-        loginScreenButtonsEnabled = True
+        if not skipButtonAnimations:
+            loginScreenButtonsEnabled = False
+            moveScreenElement(menuWidget.selectAccountButton, round(screenWidth / 2 - screenWidth / 22),
+                              round(12 * (screenHeight / 20) - screenHeight / 52), "EaseOut", 100, 600)
+            moveScreenElement(menuWidget.newAccountButton,round(screenWidth / 2 - screenWidth / 22),
+                              round(14 * (screenHeight / 20) - screenHeight/52),"EaseOut",100,600)
+            moveScreenElement(menuWidget.settingsButton, round(screenWidth / 2 - screenWidth / 22),
+                              round(16 * (screenHeight / 20) - screenHeight / 52), "EaseOut", 100, 600)
+            moveScreenElement(menuWidget.exitButton, round(screenWidth / 2 - screenWidth / 22),
+                              round(18 * (screenHeight / 20) - screenHeight / 52), "EaseOut", 100, 600)
+            loginScreenButtonsEnabled = True
+        else:
+            menuWidget.selectAccountButton.move(round(screenWidth / 2 - screenWidth / 22),
+                              round(12 * (screenHeight / 20) - screenHeight / 52))
+            menuWidget.newAccountButton.move(round(screenWidth / 2 - screenWidth / 22),
+                                                round(14 * (screenHeight / 20) - screenHeight / 52))
+            menuWidget.settingsButton.move(round(screenWidth / 2 - screenWidth / 22),
+                                                round(16 * (screenHeight / 20) - screenHeight / 52))
+            menuWidget.exitButton.move(round(screenWidth / 2 - screenWidth / 22),
+                                           round(18 * (screenHeight / 20) - screenHeight / 52))
 
         def openAccountCreation():
-            global loginScreenButtonsEnabled
+            global loginScreenButtonsEnabled, accountCreationButtonsEnabled
             if loginScreenButtonsEnabled:
                 loginScreenButtonsEnabled = False
+                accountCreationButtonsEnabled = False
                 print("Opening account creation menu")
                 playSound("buttonPress.wav")
                 print("blur in")
                 menuBlurLabel.move(0,0)
-                blurLabel(menuBlurLabel, "BlurIn", 200, 1400, "0,0,0", "0,0,0", 180)
+                blurLabel(menuBlurLabel, "BlurIn", 200, 1000, "0,0,0", "0,0,0", 180)
                 moveScreenElement(accountCreationBG, round(screenWidth/2 - screenWidth/12), round(screenHeight/2 - screenHeight/8), "EaseOut",500,1000)
-                labelFadeTransition(accountCreationAvatar,"EaseInIncrease",200, 600, True, False, "255,0,0","0,0,0")
+                imageFadeTransition(accountCreationAvatar, "EaseInIncrease", 250, 600, "OmniMathAssets/ImageAssets/defaultAvatar.png")
+                avatarShadow = QGraphicsDropShadowEffect()
+                avatarShadow.setOffset(0, 0)
+                avatarShadow.setBlurRadius(30)
+                avatarShadow.setColor(QColor("#000000"))
+                accountCreationAvatar.setGraphicsEffect(avatarShadow)
+                moveAndResizeScreenElement(accountCreationBG, round(screenWidth/2 - screenWidth/6),round(screenHeight/2  - screenHeight/4),round(screenWidth/3), round(screenHeight/2),"Bezier",500,900)
+                accountCreationTitle.move(round(screenWidth / 2 - screenWidth / 6),
+                                          round(screenHeight/3.8))
+                accountCreationTitle.setStyleSheet("background-color: rgba(0,0,0,0); color: rgba(0,0,0,0);")
+                labelFadeTransition(accountCreationTitle,"EaseInIncrease",120,500,False,True,"255,255,255","0,0,0")
+                # Move in buttons
+                moveScreenElement(menuWidget.cancelCreationBtn,round(screenWidth / 2 - screenWidth / 20 - screenWidth/22), round(screenHeight/1.57),"Bezier",250,500)
+                moveScreenElement(menuWidget.confirmCreationBtn, round(screenWidth / 2 + screenWidth / 20  - screenWidth/22),
+                                  round(screenHeight / 1.57), "Bezier", 250, 500)
+                # Change title label
+                labelFadeTransition(accountCreationTitle, "EaseInDecrease", 120, 400, False, True, "255,255,255","0,0,0")
+                accountCreationTitle.setText("Ready to start?")
+                loop = QEventLoop()
+                QTimer.singleShot(300, loop.quit)
+                loop.exec_()
+                accountCreationButtonsEnabled = True
+                labelFadeTransition(accountCreationTitle, "EaseInIncrease", 120, 500, False, True, "255,255,255",
+                                    "0,0,0")
             else:
                 print("ignored click")
 
@@ -1113,12 +1292,12 @@ class OmnimathUserInterface(QMainWindow):
                     if currentPage == "settings":
                         self.openSettingsScreen()
                     elif currentPage == "mainMenu":
-                        self.openLoginScreen(skipIntroVideo=True)
+                        self.openLoginScreen(skipIntroVideo=True, skipButtonAnimations=True)
                     elif currentPage == "avatarCreation":
                         self.openAvatarCreationScreen()
                 else:
                     print("ignored due to scaling in progress")
-            self.resizeWidget.confirmBtn = generateNewButton(self.resizeWidget, type="ConfirmSlim", positionX=round(screenWidth / 2 - screenWidth/24),
+            self.resizeWidget.confirmBtn = generateNewButton(self.resizeWidget, type="ConfirmSlimIcon", positionX=round(screenWidth / 2 - screenWidth/24),
                                                   positionY=round(screenHeight/2),
                                                   sizeX=round(screenWidth / 12),
                                                   sizeY=round(screenHeight / 20), autoCenter=False, text=" Done")
@@ -1469,14 +1648,14 @@ class OmnimathUserInterface(QMainWindow):
                 saveSystemSettings(self)
                 self.rebuildScreen()
 
-        resizeLaunchBtn = generateNewButton(settingsWidget, "ConfirmDefault", round(5.82*(screenWidth / 10)),
+        resizeLaunchBtn = generateNewButton(settingsWidget, "ConfirmSlimNoIcon", round(5.82*(screenWidth / 10)),
                                                    round(14*(screenHeight / 20)), round(screenWidth / 15),
                                                    round(screenWidth / 32), autoCenter=True, text="Open")
         resizeLaunchBtn.clicked.connect(openResizeMode)
 
         def goBackToMenu():
             playSound("buttonPress.wav")
-            self.openLoginScreen(skipIntroVideo=True)
+            self.openLoginScreen(skipIntroVideo=True, skipButtonAnimations=True)
 
         settingsWidget.exitBtn = generateNewButton(settingsWidget, "RedEnabled", round(screenWidth / 2),
                                                    round(screenHeight / 1.25), round(screenWidth / 11),
@@ -1782,16 +1961,11 @@ def excepthook(exc_type, exc_value, exc_tb):
     exitBtn = generateNewButton(errorWidget, type="RedEnabled", positionX=round(screenWidth / 1.1),
                                                   positionY=round(18 * (screenHeight / 20)),
                                                   sizeX=round(screenWidth / 11),
-                                                  sizeY=round(screenWidth / 26), autoCenter=True, text="Rage Quit")
-    def exitFunction():
-        print("Exiting...")
-        playSound("errorSound.wav")
-        exitBtn.setText("AAAAAAAAAAAA")
-        loop = QEventLoop()
-        QTimer.singleShot(2000, loop.quit)
-        loop.exec_()
+                                                  sizeY=round(screenWidth / 26), autoCenter=True, text="Quit")
+    def quitFunction():
+        print("QUITING PROGRAM DUE TO CRASH")
         sys.exit()
-    exitBtn.clicked.connect(exitFunction)
+    exitBtn.clicked.connect(quitFunction)
 
 sys.excepthook = excepthook
 
