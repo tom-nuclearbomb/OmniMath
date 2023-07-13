@@ -956,8 +956,9 @@ class OmnimathUserInterface(QMainWindow):
         resizeModeActive = False
         storedResizeWidth = self.width()
         storedResizeHeight = self.height()
-        self.openLoginScreen(skipIntroVideo=True, skipButtonAnimations=True)
+        # self.openLoginScreen(skipIntroVideo=False, skipButtonAnimations=True)
         #self.openAvatarCreationScreen(name="FirstName LastName")
+        self.openAccountCreation()
 
     def resizeEvent(self, event):
         self.resized.emit()
@@ -977,6 +978,140 @@ class OmnimathUserInterface(QMainWindow):
             saveSystemSettings(self)
             moveEventCooldown = False
             print("Updated window position in saved settings")
+
+    def openAccountCreation(self):
+        global screenWidth, screenHeight, mainFontSize, creationInputStage, creationFirstName, creationLastName
+        print("Starting account creation sequence")
+        creationInputStage = 1
+        creationFirstName = ""
+        creationLastName = ""
+        creationWidget = QWidget(self)
+        creationWidget.resize(screenWidth, screenHeight)
+        creationWidget.move(0,0)
+        self.setCentralWidget(creationWidget)
+
+        BGvideoWidget = QVideoWidget(creationWidget)
+        BGvideoWidget.resize(screenWidth, screenHeight)
+        BGvideoWidget.move(0, 0)
+
+        mediaPlayer = QMediaPlayer(creationWidget, QMediaPlayer.VideoSurface)
+        self.playlist = QMediaPlaylist()
+        self.playlist.addMedia(QMediaContent(QUrl.fromLocalFile("OmniMathAssets/VideoAssets/flowingBG.wmv")))
+        self.playlist.setCurrentIndex(1)
+        self.playlist.setPlaybackMode(QMediaPlaylist.CurrentItemInLoop)
+        mediaPlayer.setPlaylist(self.playlist)
+        mediaPlayer.setVideoOutput(BGvideoWidget)
+        mediaPlayer.play()
+
+        BGLabel = QLabel(creationWidget)
+        BGLabel.resize(round(screenWidth), round(screenHeight))
+        BGLabel.move(0,0)
+        BGLabel.setStyleSheet("background-color: white; border: 1px solid gray;")
+
+
+        avatar = QLabel(creationWidget)
+        avatar.resize(round(screenWidth / 9), round(screenHeight / 5.5))
+        avatar.move(round(screenWidth / 2 - screenWidth / 18),
+                                   round(screenHeight / 2 - screenHeight / 11))
+        avatarPixmap = QPixmap("OmniMathAssets/ImageAssets/defaultAvatar.png")
+        avatarPixmap = avatarPixmap.scaled(avatar.width(), avatar.height())
+        avatar.setPixmap(avatarPixmap)
+        avatarShadow = QGraphicsDropShadowEffect()
+        avatarShadow.setOffset(0, 0)
+        avatarShadow.setBlurRadius(30)
+        avatarShadow.setColor(QColor("#000000"))
+        avatar.setGraphicsEffect(avatarShadow)
+
+        titleLabel = QLabel(creationWidget)
+        titleLabel.resize(round(screenWidth / 3), round(screenHeight / 10))
+        titleLabel.setAlignment(Qt.AlignCenter)
+        titleLabel.move(round(screenWidth / 2 - screenWidth / 6),
+                                  round(screenHeight / 3.8))
+        titleFont = QFont("Arial", round(mainFontSize * 1.8))
+        titleFont.setBold(True)
+        titleLabel.setText("Account Creation")
+        titleLabel.setFont(titleFont)
+
+        inputBox = QLineEdit(creationWidget)
+        inputBox.resize(round(screenWidth/3.5), 40)
+        inputBox.move(round(screenWidth/2 - screenWidth/7), round(screenHeight*1.05))
+        inputBox.setAlignment(Qt.AlignCenter)
+        inputFont = QFont("Arial", mainFontSize)
+        inputBox.setFont(inputFont)
+        inputBox.setStyleSheet("border: 1px solid grey; border-radius: 4px;")
+
+        inputLabel = QLabel(creationWidget)
+        inputLabel.resize(round(screenWidth / 3.5), 40)
+        inputLabel.setFont(QFont("Arial", round(mainFontSize*0.9)))
+        inputLabel.setStyleSheet("background-color: rgba(0,0,0,0); color: rgba(0,0,0,0);")
+        inputLabel.move(round(screenWidth/2 - screenWidth/7), round(screenHeight/1.5))
+        inputLabel.setAlignment(Qt.AlignCenter)
+
+        loader = generateLoader(creationWidget, round(screenWidth / 2 - screenWidth / 16),
+                                round(screenHeight + screenHeight / 3), round(screenWidth / 8),
+                                round(screenWidth / 8), autoCenter=False)
+
+        nameConfirmBtn = generateNewButton(creationWidget, "ConfirmSlimIcon", (-1*screenWidth), (-1*screenHeight), round(screenWidth/12), 50, True, "Confirm")
+
+        moveAndResizeScreenElement(BGLabel,round(screenWidth/3), round(screenHeight/2 - screenHeight/3), round(screenWidth/3),round(screenHeight/1.4), "Bezier",300,800)
+
+        def labelFadeChangeText(element, newText, iterations, length, breakTime):
+            labelFadeTransition(element, "EaseInDecrease", iterations, length, False, True, "255,255,255", "0,0,0")
+            titleLabel.setText(newText)
+            loop = QEventLoop()
+            QTimer.singleShot(breakTime, loop.quit)
+            loop.exec_()
+            labelFadeTransition(titleLabel, "EaseInIncrease", iterations, length, False, True, "255,255,255",
+                                "0,0,0")
+
+        def inputChanged():
+            # Validate input
+            lengthOfInput = len(inputBox.text())
+            valid = True
+            for char in inputBox.text():
+                if char == " ":
+                    valid = False
+            if lengthOfInput > 0 and lengthOfInput <= 15 and valid:
+                charactersRemaining = 15 - lengthOfInput
+                nameConfirmBtn.move(round(screenWidth/2 - screenHeight/12), round(screenHeight/1.2 - 25))
+                inputLabel.setText(f"Please enter your first name ({charactersRemaining}):")
+            elif lengthOfInput > 15 and valid:
+                nameConfirmBtn.move(-1*screenWidth, -1*screenHeight)
+                inputLabel.setText(f"Too many characters! Must be 15 or less.")
+            elif lengthOfInput <= 0:
+                inputLabel.setText(f"Please enter your first name (15):")
+                nameConfirmBtn.move(-1 * screenWidth, -1 * screenHeight)
+            elif not valid:
+                inputLabel.setText(f"Please enter your first name only.")
+                nameConfirmBtn.move(-1 * screenWidth, -1 * screenHeight)
+
+        inputBox.textChanged.connect(inputChanged)
+
+        inputBox.setPlaceholderText("First Name")
+        inputLabel.setText("Please enter your first name (15):")
+        labelFadeChangeText(titleLabel, "What should I call you?", 120, 600, 300)
+        labelFadeTransition(inputLabel,"EaseInIncrease",100,200,False,True,"255,255,255","0,0,0")
+        moveScreenElement(inputBox, round(screenWidth/2 - screenWidth/7), round(screenHeight/1.4), "EaseIn", 100, 500)
+
+        def confirmNameChoice():
+            global creationInputStage, creationFirstName, creationLastName
+            if creationInputStage == 1:
+                creationFirstName = inputBox.text()
+                creationInputStage = 2
+                nameConfirmBtn.move(-1 * screenWidth, -1 * screenHeight)
+                inputBox.setText("")
+                inputBox.setPlaceholderText("Please enter your last name (15):")
+
+            elif creationInputStage == 2:
+                print("confirm last name")
+
+
+        nameConfirmBtn.clicked.connect(confirmNameChoice)
+
+        def createAccount(loader):
+            # Display loader
+            moveScreenElement(loader, round(screenWidth / 2 - screenWidth / 16), round(screenHeight / 1.5), "Bezier",
+                              120, 1000)
 
 
     def openLoginScreen(self, skipIntroVideo, skipButtonAnimations):
@@ -1063,10 +1198,6 @@ class OmnimathUserInterface(QMainWindow):
         accountCreationTitle.setText("Welcome")
         accountCreationTitle.setFont(titleFont)
 
-        loader = generateLoader(menuWidget, round(screenWidth / 2 - screenWidth / 16),
-                                round(screenHeight + screenHeight / 3), round(screenWidth / 8),
-                                round(screenWidth / 8), autoCenter=False)
-
         menuWidget.confirmCreationBtn = generateNewButton(menuWidget, type="ConfirmSlimNoIcon",
                                                           positionX=round(screenWidth / 2 + screenWidth / 20),
                                                           positionY=round(screenHeight + screenHeight / 26),
@@ -1083,6 +1214,7 @@ class OmnimathUserInterface(QMainWindow):
         def launchAccountCreation():
             global accountCreationButtonsEnabled
             if accountCreationButtonsEnabled:
+                accountCreationButtonsEnabled = False
                 print("Launching account creation!")
                 labelFadeTransition(accountCreationTitle, "EaseInDecrease", 120, 400, False, True, "255,255,255",
                                     "0,0,0")
@@ -1098,10 +1230,9 @@ class OmnimathUserInterface(QMainWindow):
                 labelFadeTransition(accountCreationTitle, "EaseInIncrease", 120, 500, False, True, "255,255,255",
                                     "0,0,0")
                 # Resize BG
-                moveAndResizeScreenElement(accountCreationBG, 0, 0, screenWidth,
-                                           screenHeight, "Bezier", 500, 800)
-                # Display loader
-                moveScreenElement(loader, round(screenWidth/2 - screenWidth/16),round(screenHeight/1.5), "Bezier",120,1000)
+                moveAndResizeScreenElement(accountCreationBG, 0, 0, screenWidth, screenHeight, "Bezier", 300, 800)
+                # Launch account creation sequence
+                self.openAccountCreation()
             else:
                 print("Ignored click")
 
@@ -1109,6 +1240,7 @@ class OmnimathUserInterface(QMainWindow):
             global loginScreenButtonsEnabled, accountCreationButtonsEnabled
             if accountCreationButtonsEnabled:
                 print("Cancelled account creation")
+                accountCreationButtonsEnabled = False
                 labelFadeTransition(accountCreationTitle, "EaseInDecrease", 120, 400, True, True, "255,255,255",
                                     "0,0,0")
                 accountCreationTitle.move(-1 * screenWidth, -1 * screenHeight)
@@ -1155,7 +1287,7 @@ class OmnimathUserInterface(QMainWindow):
             menuWidget.exitButton.move(round(screenWidth / 2 - screenWidth / 22),
                                            round(18 * (screenHeight / 20) - screenHeight / 52))
 
-        def openAccountCreation():
+        def openAccountCreationConfirmation():
             global loginScreenButtonsEnabled, accountCreationButtonsEnabled
             if loginScreenButtonsEnabled:
                 loginScreenButtonsEnabled = False
@@ -1187,9 +1319,9 @@ class OmnimathUserInterface(QMainWindow):
                 loop = QEventLoop()
                 QTimer.singleShot(300, loop.quit)
                 loop.exec_()
-                accountCreationButtonsEnabled = True
                 labelFadeTransition(accountCreationTitle, "EaseInIncrease", 120, 500, False, True, "255,255,255",
                                     "0,0,0")
+                accountCreationButtonsEnabled = True
             else:
                 print("ignored click")
 
@@ -1217,7 +1349,7 @@ class OmnimathUserInterface(QMainWindow):
 
         menuWidget.settingsButton.clicked.connect(openSettings)
         menuWidget.exitButton.clicked.connect(exitFunction)
-        menuWidget.newAccountButton.clicked.connect(openAccountCreation)
+        menuWidget.newAccountButton.clicked.connect(openAccountCreationConfirmation)
 
     def rebuildScreen(self):
         print("REBUILD REQUESTED")
@@ -1904,68 +2036,12 @@ class OmnimathUserInterface(QMainWindow):
         skinToneLabel = addNewOption("Skin Tone:", "skinTone")
         updateAvatarPreview()
 
+# Catch errors and print them for debugging
 def excepthook(exc_type, exc_value, exc_tb):
     global app, win, screenWidth, screenHeight, mainFontSize
     tb = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
     print("ERROR:\n", tb)
-    errorWidget = QWidget()
-    win.setCentralWidget(errorWidget)
-    BGLabel = QLabel(errorWidget)
-    BGLabel.resize(screenWidth, screenHeight)
-    BGLabel.move(0,0)
-    BGLabel.setStyleSheet("background: white;")
-    errorImage = QLabel(errorWidget)
-    errorImage.resize(250,250)
-    errorImage.move(round(screenWidth/2 - 125), round(screenHeight/2 - 125))
-    errorMsgs = [{'gif': 'OmniMathAssets/VideoAssets/errorAngry.gif','audio': 'errorAngry.wav'},{'gif': 'OmniMathAssets/VideoAssets/errorCry.gif','audio': 'errorCry.wav'}, {'gif': 'OmniMathAssets/VideoAssets/errorLaugh.gif','audio': 'errorLaugh.wav'}]
-    selectedError = random.choice(errorMsgs)
-    errorGIF = selectedError['gif']
-    errorSound = selectedError['audio']
-    errorBackground = QMovie(errorGIF)
-    errorImage.setMovie(errorBackground)
-    size = QtCore.QSize(250, 250)
-    errorBackground.setScaledSize(size)
-    errorBackground.start()
-    playSound(errorSound)
-    titleLabel = QLabel(errorWidget)
-    titleLabel.resize(round(screenWidth/1.5), round(screenHeight/6))
-    titleLabel.move(round(screenWidth/2 - screenWidth/3), round(screenHeight/7))
-    headerMsgs = ['NOOOOOOOOOOOO', 'Rare Tom L', 'Matt code moment', 'RIP ATAR :(', 'HEHEHEHA', 'DO BETTER!!!', 'Uh oh', 'Band 6 reduced to atoms', 'Skill issue']
-    font = QFont('Arial', round(mainFontSize*2.5))
-    font.setBold(True)
-    titleLabel.setFont(font)
-    titleLabel.setStyleSheet("color: red")
-    titleLabel.setAlignment(Qt.AlignCenter)
-    titleLabel.setText(random.choice(headerMsgs))
-    subtitleLabel = QLabel(errorWidget)
-    subtitleLabel.resize(round(screenWidth / 1.5), round(screenHeight / 6))
-    subtitleLabel.move(round(screenWidth / 2 - screenWidth / 3), round(screenHeight / 4.4))
-    font2 = QFont('Arial', round(mainFontSize * 1.6))
-    subtitleLabel.setFont(font2)
-    subtitleLabel.setStyleSheet("color: #570000")
-    subtitleLabel.setAlignment(Qt.AlignCenter)
-    subtitleLabel.setText("A critical error occured. Am I surprised? No, not really.")
-    subtitleLabel2 = QLabel(errorWidget)
-    subtitleLabel2.resize(round(screenWidth / 1.5), round(screenHeight / 6))
-    subtitleLabel2.move(round(screenWidth / 2 - screenWidth / 3), round(screenHeight / 1.8))
-    font3 = QFont('Arial', round(mainFontSize * 1.1))
-    subtitleLabel2.setFont(font3)
-    subtitleLabel2.setStyleSheet("color: #404040")
-    subtitleLabel2.setAlignment(Qt.AlignCenter)
-    subtitleLabel2.setText("Error info:")
-    errorMsgBox = QTextEdit(errorWidget)
-    errorMsgBox.resize(round(screenWidth/2), round(screenHeight/3))
-    errorMsgBox.move(round(screenWidth/2 - screenWidth/4), round(screenHeight/1.5))
-    errorMsgBox.setText(tb)
-    errorMsgBox.setFont(QFont("Arial", round(mainFontSize*0.75)))
-    exitBtn = generateNewButton(errorWidget, type="RedEnabled", positionX=round(screenWidth / 1.1),
-                                                  positionY=round(18 * (screenHeight / 20)),
-                                                  sizeX=round(screenWidth / 11),
-                                                  sizeY=round(screenWidth / 26), autoCenter=True, text="Quit")
-    def quitFunction():
-        print("QUITING PROGRAM DUE TO CRASH")
-        sys.exit()
-    exitBtn.clicked.connect(quitFunction)
+    sys.exit()
 
 sys.excepthook = excepthook
 
